@@ -1,0 +1,52 @@
+1. VISION & PURPOSE
+Problem: Small businesses can't afford Starbucks-tier loyalty tech; paper cards are lost easily.
+
+Solution: A centralized, sleek, and social loyalty app where users "collect stamps" digitally.
+
+Scale: Expanding from Cafes to Restaurants, Fast Food, and Local Artisans.
+
+2. USER PERSONAS
+The Customer: Wants a seamless, "one-tap" experience to earn rewards. Loves gamification and "pay-it-forward" social features.
+
+The Business Owner: Needs a simple dashboard to track loyal customers, create "Happy Hour" campaigns, and prevent fraud.
+
+3. CORE FEATURES & LOGIC (The "Vibe" Rules)
+A. The Digital Stamp (Müdavim Kart)
+Logic: Every business can define its own rule (e.g., "Buy 5, Get 1 Free" or "Buy 10, Get %50 Off").
+
+UI: Visual representation of a physical card with circles being filled.
+
+B. The Transaction Flow (QR Logic)
+User opens "My QR".
+
+Business scans via their "Merchant Mode" (in-app).
+
+Verification: Time-stamped, dynamic QR to prevent screenshots.
+
+Action: Increment stamp_count in DB + Push Notification to User.
+
+C. Social & Gamification
+Pay-it-Forward: User can "Gift" a earned reward to a friend via phone number/username.
+
+Leaderboard: "Müdavim of the Week" for each shop, rewarding the top loyalist with a badge or extra points.
+
+D. Smart Notifications (AI/Location)
+Context Aware: If user is near a registered Döner shop at 12:30 PM, send: "Lunch time! Your 5th Döner gets you a free Ayran here."
+
+Happy Hours: Businesses can trigger "2x Stamps" during 09:00-11:00 for slow hours.
+
+4. DESIGN VIBE (UI/UX)
+Style: Modern, minimalist, "Foodie" aesthetic.
+
+Colors: Deep Coffee Brown (for Cafes), Vibrant Orange (for Food), and Trustworthy Teal (for UI elements).
+
+Animations: Satisfying "Stamp" sound and visual pop when a point is earned.
+
+5. TECHNICAL CONSTRAINTS FOR AI AGENT
+Architecture: Clean Architecture (MVVM).
+
+Tech Stack Preference: Kotlin/Compose (Android) or Flutter (Cross-platform).
+
+Auth: Google/Phone Number (Firebase).
+
+Real-time: Use WebSockets or Firebase for instant stamp updates.

@@ -1,0 +1,21 @@
+{
+  "name": "Müdavim Sadakat Platformu",
+  "short_name": "Müdavim",
+  "description": "Şehrin en iyi kafe ve restoranlarında damga kazan, ödülleri yakala!",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#89B036",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/1007/1007959.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/1007/1007959.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

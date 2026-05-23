@@ -1,0 +1,1474 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Müdavim - Sadakat Uygulaması</title>
+    
+    <!-- PWA MANIFEST -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#89B036">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/1007/1007959.png">
+
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Leaflet CSS for Maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <!-- React and ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- HTML5 QR Code Scanner -->
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script>
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                .then(reg => console.log('Service Worker registered', reg))
+                .catch(err => console.log('Service Worker registration failed', err));
+            });
+        }
+    </script>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // --- GLOBAL STATIC DATA ---
+        const campaigns = [
+            { id: 1, title: "Müdavim Özel", desc: "Tüm Kafelerde %20 İndirim", color: "brand", img: "https://images.unsplash.com/photo-1497935586351-b67a49e012bf?auto=format&fit=crop&w=300&q=80" },
+            { id: 2, title: "Burger Saati", desc: "Bugün tüm burgercilerde +1 Puan", color: "orange", img: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=300&q=80" },
+            { id: 3, title: "Tatlı Molası", desc: "Baklavalarda 2X Damga Fırsatı", color: "brand", img: "https://images.unsplash.com/photo-1628169601332-9b2fcd1b9d1f?auto=format&fit=crop&w=300&q=80" }
+        ];
+
+        const merchants = [
+            {
+                id: 1, name: "Kahve Durağı", type: "Kafe", tags: ["Kahve", "Tatlı", "İçecek"], desc: "Kadıköy / Moda", rating: 4.8, points: 20,
+                rule: "5 Kahveye 1 Bedava", currentStamps: 3, maxStamps: 5,
+                img: "https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=600&q=80",
+                lat: 40.985, lng: 29.025
+            },
+            {
+                id: 2, name: "Lezzet Sarayı", type: "Restoran", tags: ["Kebap", "Döner", "Çorba"], desc: "Beşiktaş / Çarşı", rating: 4.5, points: 25,
+                rule: "7 Menüye 1 Bedava", currentStamps: 6, maxStamps: 7,
+                img: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80",
+                lat: 41.042, lng: 29.006
+            },
+            {
+                id: 3, name: "Gaziantep Sofrası", type: "Restoran", tags: ["Kebap", "Baklava", "Meze"], desc: "Fatih / Aksaray", rating: 4.9, points: 30,
+                rule: "10 Siparişe 1 İkram", currentStamps: 2, maxStamps: 10,
+                img: "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=600&q=80",
+                lat: 41.011, lng: 28.950
+            },
+            {
+                id: 4, name: "Mamma Mia Pizza", type: "Restoran", tags: ["Pizza", "Fast Food"], desc: "Şişli / Nişantaşı", rating: 4.7, points: 15,
+                rule: "5 Pizzaya 1 Orta Boy Hediye", currentStamps: 1, maxStamps: 5,
+                img: "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=600&q=80",
+                lat: 41.050, lng: 28.995
+            },
+            {
+                id: 5, name: "Baklavacı Zeki", type: "Kafe", tags: ["Baklava", "Tatlı"], desc: "Üsküdar / Merkez", rating: 4.9, points: 40,
+                rule: "5 Tatlıya 1 Hediye", currentStamps: 5, maxStamps: 5,
+                img: "https://images.unsplash.com/photo-1588162332612-4217f04aab8c?auto=format&fit=crop&w=600&q=80",
+                lat: 41.026, lng: 29.015
+            },
+            {
+                id: 6, name: "Burger Station", type: "Restoran", tags: ["Burger", "Fast Food", "İçecek"], desc: "Ataşehir / Merkez", rating: 4.6, points: 10,
+                rule: "7 Burger Alana 1 Menü Bedava", currentStamps: 3, maxStamps: 7,
+                img: "https://images.unsplash.com/photo-1594212202875-1014a51eab1a?auto=format&fit=crop&w=600&q=80",
+                lat: 40.985, lng: 29.108
+            }
+        ];
+
+        const initialCoupons = [
+            { id: 1, title: "1 Adet Gourmet Burger", desc: "Burger Station", used: false, img: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=200&q=80" },
+            { id: 2, title: "Bedava Porsiyon Tatlı", desc: "Baklavacı Zeki", used: false, img: "https://images.unsplash.com/photo-1628169601332-9b2fcd1b9d1f?auto=format&fit=crop&w=200&q=80" }
+        ];
+
+        // --- UI COMPONENTS ---
+
+        const MerchantCard = ({ merchant, isFavorite, toggleFavorite, onClick }) => (
+            <div className="shop-item" style={{position: 'relative', cursor: 'pointer'}} onClick={onClick}>
+                <div style={{position: 'relative'}}>
+                    <img src={merchant.img} alt={merchant.name} />
+                    <div 
+                        onClick={(e) => { e.stopPropagation(); toggleFavorite(merchant.id); }}
+                        style={{
+                            position: 'absolute', top: '-10px', left: '-10px', 
+                            background: 'white', borderRadius: '50%', width: '30px', height: '30px', 
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            boxShadow: '0 2px 5px rgba(0,0,0,0.2)', cursor: 'pointer', zIndex: 10
+                        }}
+                    >
+                        <i className={`${isFavorite ? 'fa-solid' : 'fa-regular'} fa-heart`} style={{color: isFavorite ? '#EF4444' : '#AAA', fontSize: '16px'}}></i>
+                    </div>
+                </div>
+                <div className="shop-info">
+                    <h4>{merchant.name}</h4>
+                    <p><i className="fa-solid fa-location-dot" style={{color: 'var(--brand-primary)'}}></i> {merchant.desc}</p>
+                    <div className="shop-stats">
+                        <span className="rating"><i className="fa-solid fa-star"></i> {merchant.rating}</span>
+                        <span className="points" style={{fontSize: '12px'}}><i className="fa-solid fa-tag"></i> {merchant.rule}</span>
+                    </div>
+                </div>
+            </div>
+        );
+
+        // --- SCREENS ---
+
+        const MapScreen = ({ merchants, onMerchantClick }) => {
+            useEffect(() => {
+                const map = L.map('map').setView([41.015, 29.0], 12);
+                
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                    attribution: '&copy; OpenStreetMap',
+                    subdomains: 'abcd',
+                    maxZoom: 19
+                }).addTo(map);
+
+                merchants.forEach(m => {
+                    if(m.lat && m.lng) {
+                        const customIcon = L.divIcon({
+                            className: 'custom-pin',
+                            html: `<div style="background-color: var(--brand-primary); width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; color: white;"><i class="fa-solid fa-store" style="font-size:10px;"></i></div>`,
+                            iconSize: [24, 24],
+                            iconAnchor: [12, 12]
+                        });
+
+                        const marker = L.marker([m.lat, m.lng], {icon: customIcon}).addTo(map);
+                        
+                        marker.bindPopup(`
+                            <div style="text-align: center;">
+                                <strong style="font-size: 14px; display: block; margin-bottom: 5px;">${m.name}</strong>
+                                <span style="font-size: 12px; color: #666;">${m.rule}</span><br/>
+                                <button onclick="window.dispatchEvent(new CustomEvent('merchantSelect', {detail: ${m.id}}))" style="margin-top: 10px; background: var(--brand-secondary); color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%;">Detayları Gör</button>
+                            </div>
+                        `);
+                    }
+                });
+
+                const handleMerchantSelect = (e) => {
+                    const id = e.detail;
+                    const merchant = merchants.find(x => x.id === id);
+                    if(merchant) onMerchantClick(merchant);
+                };
+                window.addEventListener('merchantSelect', handleMerchantSelect);
+
+                return () => {
+                    map.remove();
+                    window.removeEventListener('merchantSelect', handleMerchantSelect);
+                };
+            }, [merchants, onMerchantClick]);
+
+            return (
+                <div style={{width: '100%', height: 'calc(100vh - 70px)'}}>
+                    <div id="map" style={{width: '100%', height: '100%', zIndex: 1}}></div>
+                </div>
+            );
+        };
+
+        const MerchantDetailScreen = ({ merchant, onBack, isFavorite, toggleFavorite, onQrClick }) => {
+            return (
+                <div style={{background: '#f8f9fa', minHeight: '100vh', paddingBottom: '100px'}}>
+                    <div style={{position: 'relative', height: '280px', width: '100%'}}>
+                        <img src={merchant.img} alt={merchant.name} style={{width: '100%', height: '100%', objectFit: 'cover'}} />
+                        <div style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100px', background: 'linear-gradient(to bottom, rgba(0,0,0,0.5), transparent)'}}></div>
+                        
+                        <div 
+                            style={{position: 'absolute', top: '20px', left: '20px', background: 'rgba(255,255,255,0.9)', width: '45px', height: '45px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: 'var(--shadow-sm)', zIndex: 10}} 
+                            onClick={onBack}
+                        >
+                            <i className="fa-solid fa-arrow-left" style={{fontSize: '20px', color: 'var(--text-main)'}}></i>
+                        </div>
+                        
+                        <div 
+                            style={{position: 'absolute', top: '20px', right: '20px', background: 'rgba(255,255,255,0.9)', width: '45px', height: '45px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: 'var(--shadow-sm)', zIndex: 10}} 
+                            onClick={() => toggleFavorite(merchant.id)}
+                        >
+                            <i className={`${isFavorite ? 'fa-solid text-brand' : 'fa-regular text-muted'} fa-heart`} style={{fontSize: '22px', color: isFavorite ? '#EF4444' : '#AAA'}}></i>
+                        </div>
+                    </div>
+                    
+                    <div style={{background: 'white', borderRadius: '24px 24px 0 0', marginTop: '-40px', position: 'relative', padding: '30px 20px', boxShadow: '0 -5px 20px rgba(0,0,0,0.05)', maxWidth: '800px', margin: '-40px auto 0 auto', zIndex: 5}}>
+                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
+                            <div>
+                                <h2 style={{fontSize: '26px', fontWeight: '800', margin: '0 0 5px 0'}}>{merchant.name}</h2>
+                                <p style={{color: 'var(--text-muted)', fontSize: '15px', margin: 0}}><i className="fa-solid fa-location-dot" style={{color: 'var(--brand-primary)'}}></i> {merchant.desc} • {merchant.type}</p>
+                            </div>
+                            <div style={{background: '#EAB308', color: 'white', padding: '6px 12px', borderRadius: '10px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '16px'}}>
+                                <i className="fa-solid fa-star"></i> {merchant.rating}
+                            </div>
+                        </div>
+
+                        <div style={{display: 'flex', gap: '10px', marginTop: '15px'}}>
+                            {merchant.tags.map(tag => (
+                                <span key={tag} style={{background: '#F1F5F9', padding: '5px 12px', borderRadius: '20px', fontSize: '13px', fontWeight: '600', color: 'var(--text-muted)'}}>{tag}</span>
+                            ))}
+                        </div>
+
+                        <hr style={{border: 'none', borderTop: '1px solid var(--border-color)', margin: '25px 0'}} />
+
+                        <h3 style={{fontSize: '20px', marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '10px'}}>
+                            <i className="fa-solid fa-gift" style={{color: 'var(--brand-primary)'}}></i> 
+                            Sadakat Durumunuz
+                        </h3>
+                        
+                        <div style={{background: 'rgba(137, 176, 54, 0.05)', border: '1px solid rgba(137, 176, 54, 0.2)', borderRadius: '16px', padding: '25px', marginBottom: '25px'}}>
+                            <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '15px'}}>
+                                <span style={{fontWeight: '700', color: 'var(--text-main)', fontSize: '16px'}}>{merchant.rule}</span>
+                                <span style={{fontWeight: '800', color: 'var(--brand-primary)', fontSize: '16px'}}>{merchant.currentStamps} / {merchant.maxStamps} Damga</span>
+                            </div>
+                            
+                            <div className="progress-bar" style={{height: '14px', background: '#E2E4E8', borderRadius: '7px'}}>
+                                <div className="progress-fill" style={{width: `${(merchant.currentStamps / merchant.maxStamps) * 100}%`, background: 'var(--brand-primary)', borderRadius: '7px'}}></div>
+                            </div>
+                            
+                            {merchant.currentStamps >= merchant.maxStamps ? (
+                                <div style={{marginTop: '20px', padding: '15px', background: 'var(--brand-primary)', color: 'white', borderRadius: '12px', textAlign: 'center', fontWeight: 'bold', fontSize: '15px'}}>
+                                    Tebrikler! Ödülünüz hazır. Kasada QR okutarak kullanabilirsiniz.
+                                </div>
+                            ) : (
+                                <p style={{marginTop: '15px', fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center', margin: '15px 0 0 0'}}>
+                                    Ödüle ulaşmak için {merchant.maxStamps - merchant.currentStamps} işlem daha yapmalısınız.
+                                </p>
+                            )}
+                        </div>
+
+                        <button className="btn-orange" style={{width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', fontSize: '18px', padding: '16px'}} onClick={onQrClick}>
+                            <i className="fa-solid fa-qrcode" style={{fontSize: '22px'}}></i>
+                            Şimdi QR Okut
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
+        const LoginScreen = ({ onLogin }) => {
+            return (
+                <div className="screen-content" style={{display: 'flex', flexDirection: 'column', height: '100vh', padding: '0', background: 'white'}}>
+                    <div style={{flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '40px 20px'}}>
+                        <i className="fa-solid fa-stamp" style={{fontSize: '70px', color: 'var(--brand-primary)', marginBottom: '20px'}}></i>
+                        <h1 style={{fontSize: '32px', fontWeight: '800', color: 'var(--text-main)', marginBottom: '10px'}}>MÜDAVİM</h1>
+                        <p style={{color: 'var(--text-muted)', textAlign: 'center', marginBottom: '40px', fontSize: '15px'}}>Şehrin en iyi kafe ve restoranlarında damga kazan, ödülleri yakala!</p>
+                        
+                        <div style={{width: '100%', maxWidth: '350px'}}>
+                            <button className="btn-orange" style={{width: '100%', marginBottom: '15px', background: 'white', color: 'var(--text-main)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', boxShadow: 'var(--shadow-sm)'}} onClick={onLogin}>
+                                <img src="https://cdn-icons-png.flaticon.com/512/2991/2991148.png" style={{width: '24px'}} alt="Google" />
+                                Google ile Devam Et
+                            </button>
+                            
+                            <button className="btn-orange" style={{width: '100%', marginBottom: '25px', background: '#1877F2', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', boxShadow: 'none'}} onClick={onLogin}>
+                                <i className="fa-brands fa-facebook" style={{fontSize: '24px'}}></i>
+                                Facebook ile Devam Et
+                            </button>
+                            
+                            <div style={{display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '25px'}}>
+                                <div style={{flex: 1, height: '1px', background: 'var(--border-color)'}}></div>
+                                <span style={{color: 'var(--text-muted)', fontSize: '14px'}}>veya</span>
+                                <div style={{flex: 1, height: '1px', background: 'var(--border-color)'}}></div>
+                            </div>
+                            
+                            <button className="btn-orange" style={{width: '100%', background: 'var(--brand-primary)'}} onClick={onLogin}>
+                                E-Posta ile Giriş Yap
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const HomeScreen = ({ favorites, toggleFavorite, onMerchantClick }) => {
+            const [tab, setTab] = useState('Restoran');
+            const filteredMerchants = merchants.filter(m => m.type === tab);
+
+            return (
+                <div className="screen-content">
+                    <div className="campaign-slider">
+                        {campaigns.map(camp => (
+                            <div key={camp.id} className={`campaign-card ${camp.color === 'orange' ? 'orange' : ''}`}>
+                                <h3>{camp.title}</h3>
+                                <p>{camp.desc}</p>
+                                <img src={camp.img} alt={camp.title} className="campaign-image" />
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="tabs" style={{marginTop: '24px'}}>
+                        <div className={`tab ${tab === 'Restoran' ? 'active' : ''}`} onClick={() => setTab('Restoran')}>Restoranlar</div>
+                        <div className={`tab ${tab === 'Kafe' ? 'active' : ''}`} onClick={() => setTab('Kafe')}>Kafeler</div>
+                    </div>
+
+                    <h3 style={{marginBottom: '16px', fontSize: '18px', fontWeight: '700', color: 'var(--text-main)'}}>
+                        Yakındaki {tab === 'Restoran' ? 'Restoranlar' : 'Kafeler'}
+                    </h3>
+                    
+                    {filteredMerchants.length === 0 ? (
+                        <p style={{textAlign: 'center', color: 'var(--text-muted)'}}>Bu kategoride işletme bulunamadı.</p>
+                    ) : (
+                        <div className="merchant-list">
+                            {filteredMerchants.map(merchant => (
+                                <MerchantCard 
+                                    key={merchant.id} 
+                                    merchant={merchant} 
+                                    isFavorite={favorites.includes(merchant.id)}
+                                    toggleFavorite={toggleFavorite}
+                                    onClick={() => onMerchantClick(merchant)}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const SearchScreen = ({ favorites, toggleFavorite, onMerchantClick }) => {
+            const [searchQuery, setSearchQuery] = useState("");
+            const [activePill, setActivePill] = useState("Hepsi");
+            
+            const searchCategories = ["Hepsi", "Kahve", "Burger", "Kebap", "Tatlı", "Pizza", "İçecek"];
+
+            const filteredMerchants = merchants.filter(m => {
+                const matchesQuery = m.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                                     m.desc.toLowerCase().includes(searchQuery.toLowerCase());
+                const matchesPill = activePill === "Hepsi" || m.tags.includes(activePill);
+                return matchesQuery && matchesPill;
+            });
+
+            return (
+                <div className="screen-content">
+                    <div className="search-bar">
+                        <input 
+                            type="text" 
+                            placeholder="İşletme veya lezzet arayın..." 
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                        <i className="fa-solid fa-magnifying-glass"></i>
+                    </div>
+
+                    <div className="pill-grid">
+                        {searchCategories.map((cat, idx) => (
+                            <div 
+                                key={idx} 
+                                className={`pill ${activePill === cat ? 'active' : ''}`}
+                                onClick={() => setActivePill(cat)}
+                            >
+                                {cat}
+                            </div>
+                        ))}
+                    </div>
+
+                    {filteredMerchants.length === 0 ? (
+                        <div style={{textAlign: 'center', color: 'var(--text-muted)', marginTop: '40px'}}>
+                            <i className="fa-solid fa-face-frown" style={{fontSize: '40px', marginBottom: '15px', color: '#DDD'}}></i>
+                            <p>Aradığınız kritere uygun sonuç bulunamadı.</p>
+                            <button className="btn-orange" style={{marginTop: '20px', background: 'var(--brand-primary)'}} onClick={() => {setSearchQuery(""); setActivePill("Hepsi");}}>Filtreleri Temizle</button>
+                        </div>
+                    ) : (
+                        <div className="merchant-list">
+                            {filteredMerchants.map(merchant => (
+                                <MerchantCard 
+                                    key={merchant.id} 
+                                    merchant={merchant} 
+                                    isFavorite={favorites.includes(merchant.id)}
+                                    toggleFavorite={toggleFavorite}
+                                    onClick={() => onMerchantClick(merchant)}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const QRScreen = ({ addOrder }) => {
+            const [scannedData, setScannedData] = useState(null);
+            const [qrMode, setQrMode] = useState('show'); 
+
+            useEffect(() => {
+                let html5QrcodeScanner;
+                if (qrMode === 'scan' && !scannedData) {
+                    try {
+                        html5QrcodeScanner = new Html5QrcodeScanner("qr-reader", { fps: 10, qrbox: {width: 250, height: 250} }, false);
+                        html5QrcodeScanner.render((decodedText) => {
+                            setScannedData(decodedText);
+                            const randomMerchant = merchants[Math.floor(Math.random() * merchants.length)];
+                            addOrder(randomMerchant.id, "+1 Damga");
+                            html5QrcodeScanner.clear();
+                        }, (error) => {});
+                    } catch(e) {
+                        console.log("Kamera başlatılamadı", e);
+                    }
+                }
+
+                return () => {
+                    if (html5QrcodeScanner) {
+                        try { html5QrcodeScanner.clear(); } catch(e){}
+                    }
+                };
+            }, [qrMode, scannedData, addOrder]);
+
+            return (
+                <div className="screen-content qr-screen">
+                    <div className="tabs" style={{width: '100%', maxWidth: '100%', marginBottom: '30px', padding: '0', background: 'transparent', borderBottom: '1px solid var(--border-color)', borderRadius: '0'}}>
+                        <div className={`tab ${qrMode === 'show' ? 'active' : ''}`} style={{background: 'transparent', color: qrMode === 'show' ? 'var(--brand-primary)' : 'var(--text-muted)', borderBottom: qrMode === 'show' ? '3px solid var(--brand-primary)' : 'none', borderRadius: 0, paddingBottom: '15px', boxShadow: 'none'}} onClick={() => setQrMode('show')}>Müdavim QR Kodum</div>
+                        <div className={`tab ${qrMode === 'scan' ? 'active' : ''}`} style={{background: 'transparent', color: qrMode === 'scan' ? 'var(--brand-primary)' : 'var(--text-muted)', borderBottom: qrMode === 'scan' ? '3px solid var(--brand-primary)' : 'none', borderRadius: 0, paddingBottom: '15px', boxShadow: 'none'}} onClick={() => {setQrMode('scan'); setScannedData(null);}}>İşletme Kodu Okut</div>
+                    </div>
+
+                    {qrMode === 'show' ? (
+                        <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%'}}>
+                            <div style={{background: 'white', padding: '40px', borderRadius: '24px', boxShadow: 'var(--shadow-md)', textAlign: 'center', width: '100%', maxWidth: '350px'}}>
+                                <h3 style={{marginBottom: '20px', color: 'var(--text-main)', fontSize: '22px'}}>Caner Demir</h3>
+                                <div style={{width: '200px', height: '200px', margin: '0 auto 20px', border: '5px solid var(--border-color)', borderRadius: '16px', padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'white'}}>
+                                    <img src="https://upload.wikimedia.org/wikipedia/commons/d/d0/QR_code_for_mobile_English_Wikipedia.svg" alt="QR Code" style={{width: '100%', height: '100%'}} />
+                                </div>
+                                <p style={{fontSize: '13px', color: 'var(--text-muted)'}}><i className="fa-solid fa-arrows-rotate"></i> Güvenlik için kod 30 saniyede bir yenilenir.</p>
+                                <p style={{marginTop: '20px', fontSize: '15px', fontWeight: '600', color: 'var(--brand-primary)'}}>Damga kazanmak veya ödül harcamak için kasada bu kodu gösterin.</p>
+                            </div>
+                        </div>
+                    ) : (
+                        <div style={{width: '100%'}}>
+                            {!scannedData ? (
+                                <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
+                                    <p className="text-muted" style={{marginBottom: '20px', textAlign: 'center'}}>İşletmenin sunduğu QR kodu okutarak ödülünüzü anında alın.</p>
+                                    <div id="qr-reader" style={{width: '100%', maxWidth: '400px', borderRadius: '16px', overflow: 'hidden', boxShadow: 'var(--shadow-lg)', background: 'black'}}></div>
+                                </div>
+                            ) : (
+                                <div style={{marginTop: '20px', textAlign: 'center', background: 'white', padding: '30px', borderRadius: '20px', boxShadow: 'var(--shadow-lg)'}}>
+                                    <i className="fa-solid fa-circle-check text-brand" style={{fontSize: '70px', marginBottom: '20px'}}></i>
+                                    <h2>İşlem Başarılı!</h2>
+                                    <p style={{margin: '10px 0 20px', fontSize: '15px'}}>Okunan Veri: <strong>{scannedData}</strong></p>
+                                    <p style={{color: 'var(--brand-primary)', fontWeight: '700', marginBottom: '30px'}}>İşleminiz "Geçmiş İşlemler" menüsüne eklendi!</p>
+                                    <button className="btn-orange" style={{marginBottom: '15px'}} onClick={() => {setScannedData(null);}}>Yeni Kod Okut</button>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const ProfileSettings = ({onBack}) => {
+            const [email, setEmail] = useState(true);
+            const [phone, setPhone] = useState(true);
+            const [sms, setSms] = useState(true);
+
+            return (
+                <div style={{position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: '#F0F2F5', zIndex: 1000, overflowY: 'auto', display: 'flex', flexDirection: 'column'}}>
+                    <div className="app-header" style={{display: 'flex', alignItems: 'center', position: 'sticky', top: 0, zIndex: 10, borderRadius: 0}}>
+                        <i className="fa-solid fa-arrow-left" style={{fontSize: '20px', cursor: 'pointer', position: 'absolute', left: '20px'}} onClick={onBack}></i>
+                        <h2 style={{margin: '0 auto', fontSize: '18px', fontWeight: '500'}}>İletişim Tercihleri</h2>
+                    </div>
+                    
+                    <div style={{padding: '20px'}}>
+                        <div style={{background: 'white', borderRadius: '12px', padding: '20px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)'}}>
+                            
+                            {/* E-posta */}
+                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
+                                <div style={{paddingRight: '15px'}}>
+                                    <div style={{fontSize: '15px', fontWeight: '800', color: '#111', marginBottom: '5px'}}>E-posta</div>
+                                    <div style={{fontSize: '13px', color: '#888'}}>Kampanyalar ile ilgili e-posta almak istiyorum</div>
+                                </div>
+                                <div 
+                                    style={{width: '50px', height: '28px', background: email ? 'var(--brand-primary)' : '#E2E4E8', borderRadius: '14px', position: 'relative', cursor: 'pointer', transition: 'background 0.3s', flexShrink: 0}}
+                                    onClick={() => setEmail(!email)}
+                                >
+                                    <div style={{width: '24px', height: '24px', background: 'white', borderRadius: '50%', position: 'absolute', top: '2px', left: email ? '24px' : '2px', transition: 'left 0.3s', boxShadow: '0 2px 5px rgba(0,0,0,0.2)'}}></div>
+                                </div>
+                            </div>
+
+                            {/* Telefon */}
+                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
+                                <div style={{paddingRight: '15px'}}>
+                                    <div style={{fontSize: '15px', fontWeight: '800', color: '#111', marginBottom: '5px'}}>Telefon</div>
+                                    <div style={{fontSize: '13px', color: '#888'}}>Kampanyalar ile ilgili arama almak istiyorum</div>
+                                </div>
+                                <div 
+                                    style={{width: '50px', height: '28px', background: phone ? 'var(--brand-primary)' : '#E2E4E8', borderRadius: '14px', position: 'relative', cursor: 'pointer', transition: 'background 0.3s', flexShrink: 0}}
+                                    onClick={() => setPhone(!phone)}
+                                >
+                                    <div style={{width: '24px', height: '24px', background: 'white', borderRadius: '50%', position: 'absolute', top: '2px', left: phone ? '24px' : '2px', transition: 'left 0.3s', boxShadow: '0 2px 5px rgba(0,0,0,0.2)'}}></div>
+                                </div>
+                            </div>
+
+                            {/* Sms */}
+                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
+                                <div style={{paddingRight: '15px'}}>
+                                    <div style={{fontSize: '15px', fontWeight: '800', color: '#111', marginBottom: '5px'}}>Sms</div>
+                                    <div style={{fontSize: '13px', color: '#888'}}>Kampanyalar ile ilgili SMS almak istiyorum</div>
+                                </div>
+                                <div 
+                                    style={{width: '50px', height: '28px', background: sms ? 'var(--brand-primary)' : '#E2E4E8', borderRadius: '14px', position: 'relative', cursor: 'pointer', transition: 'background 0.3s', flexShrink: 0}}
+                                    onClick={() => setSms(!sms)}
+                                >
+                                    <div style={{width: '24px', height: '24px', background: 'white', borderRadius: '50%', position: 'absolute', top: '2px', left: sms ? '24px' : '2px', transition: 'left 0.3s', boxShadow: '0 2px 5px rgba(0,0,0,0.2)'}}></div>
+                                </div>
+                            </div>
+
+                            {/* Footer text */}
+                            <div style={{fontSize: '12px', color: '#888', lineHeight: '1.5', marginTop: '10px'}}>
+                                Kampanyalarla ilgili iletişim tercihlerini kapattığında siparişlerin ve üyelik ayarlarınla ilgili e-posta arama SMS almaya devam edebilirsin.
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const ProfileEdit = ({onBack}) => (
+            <div className="profile-panel">
+                <h3 style={{display: 'flex', alignItems: 'center'}}><i className="fa-solid fa-arrow-left" style={{cursor:'pointer', marginRight:'15px', color: 'var(--brand-primary)'}} onClick={onBack}></i> Hesap Bilgileri</h3>
+                <div style={{marginTop: '30px', display: 'flex', flexDirection: 'column', gap: '20px'}}>
+                    <div>
+                        <label style={{fontSize: '14px', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '8px', display: 'block'}}>Ad Soyad</label>
+                        <div className="search-bar" style={{boxShadow:'none', border:'1px solid var(--border-color)', margin:0}}><input type="text" defaultValue="Caner Demir" /></div>
+                    </div>
+                    <div>
+                        <label style={{fontSize: '14px', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '8px', display: 'block'}}>Telefon Numarası</label>
+                        <div className="search-bar" style={{boxShadow:'none', border:'1px solid var(--border-color)', margin:0}}><input type="text" defaultValue="0555 123 4567" /></div>
+                    </div>
+                    <div>
+                        <label style={{fontSize: '14px', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '8px', display: 'block'}}>E-Posta</label>
+                        <div className="search-bar" style={{boxShadow:'none', border:'1px solid var(--border-color)', margin:0}}><input type="email" defaultValue="caner@example.com" /></div>
+                    </div>
+                    <button className="btn-orange" onClick={() => {alert("Bilgileriniz başarıyla güncellendi!"); onBack();}}>Değişiklikleri Kaydet</button>
+                </div>
+            </div>
+        );
+
+        const ProfileHelpCenter = ({onBack}) => (
+            <div style={{position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: '#F0F2F5', zIndex: 1000, overflowY: 'auto', display: 'flex', flexDirection: 'column'}}>
+                <div className="app-header" style={{display: 'flex', alignItems: 'center', position: 'sticky', top: 0, zIndex: 10, borderRadius: 0}}>
+                    <i className="fa-solid fa-arrow-left" style={{fontSize: '20px', cursor: 'pointer', position: 'absolute', left: '20px'}} onClick={onBack}></i>
+                    <h2 style={{margin: '0 auto', fontSize: '18px', fontWeight: '500'}}>Yardım Merkezi</h2>
+                </div>
+                <div style={{padding: '20px', display: 'flex', flexDirection: 'column', gap: '15px'}}>
+                    <div style={{background: 'white', borderRadius: '12px', padding: '20px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)'}}>
+                        <h3 style={{fontSize: '16px', fontWeight: '800', marginBottom: '15px', color: '#111'}}><i className="fa-regular fa-circle-question" style={{color: 'var(--brand-primary)', marginRight: '8px'}}></i>Sıkça Sorulan Sorular</h3>
+                        <div style={{display: 'flex', flexDirection: 'column', gap: '15px'}}>
+                            <div style={{paddingBottom: '15px', borderBottom: '1px solid #E2E4E8'}}>
+                                <div style={{fontWeight: '700', fontSize: '14px', marginBottom: '5px'}}>Siparişimi nasıl iptal edebilirim?</div>
+                                <div style={{fontSize: '13px', color: '#666', lineHeight: '1.4'}}>Siparişinizi şube onaylamadan önce "Önceki Siparişlerim" menüsünden iptal edebilirsiniz.</div>
+                            </div>
+                            <div style={{paddingBottom: '15px', borderBottom: '1px solid #E2E4E8'}}>
+                                <div style={{fontWeight: '700', fontSize: '14px', marginBottom: '5px'}}>Puan/Damga nasıl kazanırım?</div>
+                                <div style={{fontSize: '13px', color: '#666', lineHeight: '1.4'}}>Kasada QR kodunuzu okutarak veya uygulama üzerinden sipariş vererek damga kazanabilirsiniz.</div>
+                            </div>
+                            <div>
+                                <div style={{fontWeight: '700', fontSize: '14px', marginBottom: '5px'}}>Şifremi unuttum, ne yapmalıyım?</div>
+                                <div style={{fontSize: '13px', color: '#666', lineHeight: '1.4'}}>Giriş sayfasındaki "Şifremi Unuttum" bağlantısına tıklayarak kayıtlı e-posta adresinize sıfırlama linki gönderebilirsiniz.</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style={{background: 'white', borderRadius: '12px', padding: '20px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)'}}>
+                        <h3 style={{fontSize: '16px', fontWeight: '800', marginBottom: '15px', color: '#111'}}><i className="fa-regular fa-comments" style={{color: 'var(--brand-primary)', marginRight: '8px'}}></i>Bize Ulaşın</h3>
+                        <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
+                            <a href="tel:08501234567" style={{textDecoration: 'none', color: 'inherit', display: 'flex', alignItems: 'center', gap: '15px', padding: '15px', background: '#F8F9FA', borderRadius: '12px'}}>
+                                <i className="fa-solid fa-phone" style={{fontSize: '20px', color: '#333'}}></i>
+                                <div>
+                                    <div style={{fontWeight: '700', fontSize: '14px'}}>Müşteri Hizmetleri</div>
+                                    <div style={{fontSize: '13px', color: '#666'}}>0850 123 45 67</div>
+                                </div>
+                            </a>
+                            <a href="mailto:destek@mudavim.com" style={{textDecoration: 'none', color: 'inherit', display: 'flex', alignItems: 'center', gap: '15px', padding: '15px', background: '#F8F9FA', borderRadius: '12px'}}>
+                                <i className="fa-solid fa-envelope" style={{fontSize: '20px', color: '#333'}}></i>
+                                <div>
+                                    <div style={{fontWeight: '700', fontSize: '14px'}}>E-Posta</div>
+                                    <div style={{fontSize: '13px', color: '#666'}}>destek@mudavim.com</div>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+
+        const ProfileBranches = ({onBack}) => (
+            <div style={{position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: '#F0F2F5', zIndex: 1000, overflowY: 'auto', display: 'flex', flexDirection: 'column'}}>
+                <div className="app-header" style={{display: 'flex', alignItems: 'center', position: 'sticky', top: 0, zIndex: 10, borderRadius: 0}}>
+                    <i className="fa-solid fa-arrow-left" style={{fontSize: '20px', cursor: 'pointer', position: 'absolute', left: '20px'}} onClick={onBack}></i>
+                    <h2 style={{margin: '0 auto', fontSize: '18px', fontWeight: '500'}}>Şubeler</h2>
+                </div>
+                <div style={{padding: '15px', display: 'flex', flexDirection: 'column', gap: '10px'}}>
+                    {merchants.map(m => (
+                        <div key={m.id} style={{background: 'white', borderRadius: '12px', padding: '15px', display: 'flex', alignItems: 'center', gap: '15px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)'}}>
+                            <img src={m.img} alt={m.name} style={{width: '60px', height: '60px', borderRadius: '8px', objectFit: 'cover'}} />
+                            <div style={{flex: 1}}>
+                                <h4 style={{margin: '0 0 5px 0', fontSize: '15px', color: '#111'}}>{m.name}</h4>
+                                <p style={{margin: 0, fontSize: '12px', color: '#666'}}><i className="fa-solid fa-location-dot" style={{marginRight: '5px', color: 'var(--brand-primary)'}}></i>{m.desc}</p>
+                                <p style={{margin: '5px 0 0 0', fontSize: '12px', color: '#888'}}>{m.rule}</p>
+                            </div>
+                            <div style={{color: 'var(--brand-primary)', cursor: 'pointer', padding: '10px', background: '#F8F9FA', borderRadius: '50%'}}>
+                                <i className="fa-solid fa-map"></i>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+
+        const ProfileLanguage = ({onBack}) => {
+            const [selectedLang, setSelectedLang] = useState('tr');
+            
+            return (
+                <div style={{position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: '#F0F2F5', zIndex: 1000, overflowY: 'auto', display: 'flex', flexDirection: 'column'}}>
+                    <div className="app-header" style={{display: 'flex', alignItems: 'center', position: 'sticky', top: 0, zIndex: 10, borderRadius: 0}}>
+                        <i className="fa-solid fa-arrow-left" style={{fontSize: '20px', cursor: 'pointer', position: 'absolute', left: '20px'}} onClick={onBack}></i>
+                        <h2 style={{margin: '0 auto', fontSize: '18px', fontWeight: '500'}}>Dil Seçimi</h2>
+                    </div>
+                    <div style={{padding: '20px'}}>
+                        <div style={{background: 'white', borderRadius: '12px', padding: '10px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)'}}>
+                            <div 
+                                style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', borderBottom: '1px solid #E2E4E8', cursor: 'pointer'}}
+                                onClick={() => setSelectedLang('tr')}
+                            >
+                                <div style={{display: 'flex', alignItems: 'center', gap: '15px', fontSize: '15px', fontWeight: '600', color: '#111'}}>
+                                    <span style={{fontSize: '20px'}}>🇹🇷</span> Türkçe
+                                </div>
+                                {selectedLang === 'tr' && <i className="fa-solid fa-check" style={{color: 'var(--brand-primary)', fontSize: '16px'}}></i>}
+                            </div>
+                            <div 
+                                style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', cursor: 'pointer'}}
+                                onClick={() => setSelectedLang('en')}
+                            >
+                                <div style={{display: 'flex', alignItems: 'center', gap: '15px', fontSize: '15px', fontWeight: '600', color: '#111'}}>
+                                    <span style={{fontSize: '20px'}}>🇬🇧</span> English
+                                </div>
+                                {selectedLang === 'en' && <i className="fa-solid fa-check" style={{color: 'var(--brand-primary)', fontSize: '16px'}}></i>}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const ProfileCards = ({onBack}) => (
+            <div style={{position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: '#F0F2F5', zIndex: 1000, overflowY: 'auto', display: 'flex', flexDirection: 'column'}}>
+                <div className="app-header" style={{display: 'flex', alignItems: 'center', position: 'sticky', top: 0, zIndex: 10, borderRadius: 0}}>
+                    <i className="fa-solid fa-arrow-left" style={{fontSize: '20px', cursor: 'pointer', position: 'absolute', left: '20px'}} onClick={onBack}></i>
+                    <h2 style={{margin: '0 auto', fontSize: '18px', fontWeight: '500'}}>Kayıtlı Kartlarım</h2>
+                </div>
+                <div style={{padding: '20px', display: 'flex', flexDirection: 'column', gap: '15px'}}>
+                    <div style={{background: 'linear-gradient(135deg, var(--brand-primary), #638c20)', borderRadius: '16px', padding: '25px', color: 'white', position: 'relative', overflow: 'hidden', boxShadow: '0 4px 15px rgba(137, 176, 54, 0.4)'}}>
+                        <div style={{position: 'absolute', right: '-20px', top: '-20px', fontSize: '150px', opacity: 0.1}}>
+                            <i className="fa-brands fa-cc-visa"></i>
+                        </div>
+                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', position: 'relative', zIndex: 2}}>
+                            <div style={{fontSize: '18px', fontWeight: '800'}}>Garanti Bonus</div>
+                            <i className="fa-brands fa-cc-visa" style={{fontSize: '35px'}}></i>
+                        </div>
+                        <div style={{fontSize: '22px', letterSpacing: '2px', marginBottom: '15px', fontFamily: 'monospace', position: 'relative', zIndex: 2}}>
+                            **** **** **** 1234
+                        </div>
+                        <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '12px', opacity: 0.8, position: 'relative', zIndex: 2}}>
+                            <span>A. KAYGISIZ</span>
+                            <span>12/28</span>
+                        </div>
+                    </div>
+                    
+                    <button style={{width: '100%', background: 'white', color: 'var(--brand-primary)', border: '2px dashed var(--brand-primary)', padding: '16px', borderRadius: '12px', fontSize: '16px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'}}>
+                        <i className="fa-solid fa-plus"></i> Yeni Kart Ekle
+                    </button>
+                </div>
+            </div>
+        );
+
+        const ProfileFavorites = ({onBack, favorites, toggleFavorite, onMerchantClick}) => {
+            const favMerchants = merchants.filter(m => favorites.includes(m.id));
+
+            return (
+                <div className="profile-panel">
+                    <h3 style={{display: 'flex', alignItems: 'center'}}><i className="fa-solid fa-arrow-left" style={{cursor:'pointer', marginRight:'15px', color: 'var(--brand-primary)'}} onClick={onBack}></i> Favori İşletmelerim</h3>
+                    <div style={{marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '15px'}}>
+                        {favMerchants.length === 0 ? (
+                            <p style={{textAlign: 'center', color: 'var(--text-muted)', padding: '20px 0'}}>Henüz favori işletmeniz bulunmuyor. Ana menüden kalp ikonuna tıklayarak ekleyebilirsiniz.</p>
+                        ) : (
+                            favMerchants.map(merchant => (
+                                <div key={merchant.id} style={{padding: '15px', border: '1px solid var(--border-color)', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '15px', cursor: 'pointer'}} onClick={(e) => {
+                                    if(e.target.tagName !== 'I') onMerchantClick(merchant);
+                                }}>
+                                    <img src={merchant.img} alt={merchant.name} style={{width: '60px', height: '60px', borderRadius: '10px', objectFit: 'cover'}} />
+                                    <div style={{flex: 1}}>
+                                        <h4 style={{margin: 0, marginBottom: '4px'}}>{merchant.name}</h4>
+                                        <p style={{margin: 0, fontSize: '12px', color: 'var(--text-muted)'}}><i className="fa-solid fa-tag" style={{color: 'var(--brand-primary)'}}></i> {merchant.rule}</p>
+                                    </div>
+                                    <i className="fa-solid fa-heart" style={{color: '#EF4444', fontSize: '24px', cursor: 'pointer'}} onClick={(e) => {e.stopPropagation(); toggleFavorite(merchant.id);}}></i>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const ProfileReviews = ({onBack, reviews}) => {
+            return (
+                <div className="profile-panel">
+                    <h3 style={{display: 'flex', alignItems: 'center'}}><i className="fa-solid fa-arrow-left" style={{cursor:'pointer', marginRight:'15px', color: 'var(--brand-primary)'}} onClick={onBack}></i> Değerlendirmelerim</h3>
+                    <div style={{marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '15px'}}>
+                        {reviews.length === 0 ? (
+                            <p style={{textAlign: 'center', color: 'var(--text-muted)', padding: '20px 0'}}>Henüz bir değerlendirme yapmadınız. Geçmiş işlemler menüsünden değerlendirme bırakabilirsiniz.</p>
+                        ) : (
+                            reviews.map(review => {
+                                const merchant = merchants.find(m => m.id === review.merchantId);
+                                return (
+                                    <div key={review.id} style={{padding: '20px', border: '1px solid var(--border-color)', borderRadius: '12px'}}>
+                                        <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '8px'}}>
+                                            <h4 style={{margin: 0}}>{merchant ? merchant.name : 'Bilinmeyen İşletme'}</h4>
+                                            <span style={{color: '#EAB308', fontWeight: '700'}}>
+                                                {Array(review.rating).fill().map((_, i) => <i key={i} className="fa-solid fa-star"></i>)}
+                                            </span>
+                                        </div>
+                                        <p className="text-muted" style={{fontSize: '14px', margin: '0 0 10px 0'}}>{review.text}</p>
+                                        <span style={{fontSize: '12px', color: '#AAA'}}>{review.date}</span>
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const ProfileOrders = ({onBack, orders, addReview}) => {
+            const [selectedOrder, setSelectedOrder] = useState(null);
+            const [viewMode, setViewMode] = useState('list'); // 'list' | 'detail'
+            const [showReviewModal, setShowReviewModal] = useState(false);
+            const [ratings, setRatings] = useState({ deneyim: 0, lezzet: 0, hiz: 0, ortam: 0, personel: 0, deger: 0 });
+            const [reviewText, setReviewText] = useState("");
+
+            const handleReviewSubmit = () => {
+                if(Object.values(ratings).some(r => r === 0)) {
+                    alert("Devam etmek için tüm soruları doldurmalısın.");
+                    return;
+                }
+                addReview(selectedOrder.id, selectedOrder.merchantId, ratings.deneyim, reviewText);
+                setShowReviewModal(false);
+                setRatings({ deneyim: 0, lezzet: 0, hiz: 0, ortam: 0, personel: 0, deger: 0 });
+                setReviewText("");
+                alert("Değerlendirmeniz başarıyla eklendi!");
+            };
+
+            const StarRating = ({ label, field }) => (
+                <div style={{background: 'white', borderRadius: '12px', padding: '15px', marginBottom: '10px', display: 'flex', flexDirection: 'column', gap: '10px'}}>
+                    <div style={{fontSize: '14px', fontWeight: '700', color: '#111'}}>{label}</div>
+                    <div style={{display: 'flex', gap: '8px', fontSize: '24px', color: '#D1D5DB'}}>
+                        {[1,2,3,4,5].map(star => (
+                            <i 
+                                key={star} 
+                                className={star <= ratings[field] ? "fa-solid fa-star" : "fa-regular fa-star"} 
+                                style={{cursor: 'pointer', color: star <= ratings[field] ? 'var(--brand-primary)' : '#D1D5DB', transition: 'color 0.2s'}} 
+                                onClick={() => setRatings({...ratings, [field]: star})}
+                            ></i>
+                        ))}
+                    </div>
+                </div>
+            );
+
+            // DETAIL VIEW
+            if (viewMode === 'detail' && selectedOrder) {
+                const merchant = merchants.find(m => m.id === selectedOrder.merchantId) || {name: "Bilinmeyen Şube"};
+                return (
+                    <div style={{position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: '#F0F2F5', zIndex: 1000, overflowY: 'auto', display: 'flex', flexDirection: 'column'}}>
+                        <div className="app-header" style={{display: 'flex', alignItems: 'center', position: 'sticky', top: 0, zIndex: 10, borderRadius: 0}}>
+                            <i className="fa-solid fa-arrow-left" style={{fontSize: '20px', cursor: 'pointer', position: 'absolute', left: '20px'}} onClick={() => setViewMode('list')}></i>
+                            <h2 style={{margin: '0 auto', fontSize: '18px', fontWeight: '500'}}>Sipariş Detayı</h2>
+                        </div>
+                        
+                        <div style={{flex: 1, padding: '15px', display: 'flex', flexDirection: 'column', gap: '15px'}}>
+                            {/* Card 1: Sipariş Bilgileri */}
+                            <div style={{background: 'white', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px'}}>
+                                <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '14px'}}>
+                                    <span style={{fontWeight: '700', color: '#333'}}>Sipariş Tipi</span>
+                                    <span style={{color: '#666'}}>Şubeden Al</span>
+                                </div>
+                                <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '14px'}}>
+                                    <span style={{fontWeight: '700', color: '#333'}}>Şube Detayı</span>
+                                    <span style={{color: '#666'}}>{merchant.name}</span>
+                                </div>
+                                <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '14px'}}>
+                                    <span style={{fontWeight: '700', color: '#333'}}>Sipariş Numarası</span>
+                                    <span style={{color: '#666'}}>{selectedOrder.id}</span>
+                                </div>
+                                <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '14px'}}>
+                                    <span style={{fontWeight: '700', color: '#333'}}>Sipariş Tarihi</span>
+                                    <span style={{color: '#666'}}>{selectedOrder.date}</span>
+                                </div>
+                                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '14px'}}>
+                                    <span style={{fontWeight: '700', color: '#333'}}>Sipariş Durumu</span>
+                                    <span style={{background: 'rgba(137, 176, 54, 0.15)', color: 'var(--brand-primary)', padding: '5px 10px', borderRadius: '8px', fontWeight: '700', fontSize: '12px'}}>Teslim Edildi</span>
+                                </div>
+                            </div>
+
+                            {/* Card 2: Ürünler */}
+                            <div style={{background: 'white', borderRadius: '12px', padding: '20px'}}>
+                                <div style={{fontWeight: '800', fontSize: '15px', marginBottom: '15px', color: '#111'}}>Sipariş Detayı</div>
+                                <div style={{fontWeight: '700', fontSize: '15px', marginBottom: '8px', color: '#333'}}>{selectedOrder.desc}</div>
+                                <div style={{fontSize: '13px', color: '#888', marginBottom: '4px'}}>Boy Seçimi : Standart</div>
+                                <div style={{fontSize: '13px', color: '#888', marginBottom: '12px'}}>Ekstra : Yok</div>
+                                <div style={{fontSize: '14px', color: '#EF4444'}}>1 x 0 TL</div>
+                            </div>
+
+                            {/* Card 3: Ödeme Bilgisi */}
+                            <div style={{background: 'white', borderRadius: '12px', padding: '20px'}}>
+                                <div style={{fontWeight: '800', fontSize: '15px', marginBottom: '15px', color: '#111'}}>Ödeme Bilgisi</div>
+                                <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '14px', marginBottom: '10px', color: '#555'}}>
+                                    <span>Sipariş Tutarı</span>
+                                    <span>0 TL</span>
+                                </div>
+                                <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '14px', marginBottom: '15px', color: '#555'}}>
+                                    <span>İndirim Tutarı</span>
+                                    <span>-0 TL</span>
+                                </div>
+                                <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '15px', fontWeight: '800', color: '#111', paddingTop: '15px', borderTop: '1px solid #E2E4E8'}}>
+                                    <span>Toplam</span>
+                                    <span>0 TL</span>
+                                </div>
+                            </div>
+
+                            {/* Card 4: Ödeme Yöntemi */}
+                            <div style={{background: 'white', borderRadius: '12px', padding: '20px'}}>
+                                <div style={{fontWeight: '800', fontSize: '15px', marginBottom: '10px', color: '#111'}}>Ödeme Yöntemi</div>
+                                <div style={{fontSize: '14px', color: '#555'}}>Cüzdan / Puan ile Ödeme</div>
+                            </div>
+                        </div>
+
+                        {/* Bottom Buttons */}
+                        <div style={{padding: '15px', background: 'white', borderTop: '1px solid #E2E4E8', position: 'sticky', bottom: 0, display: 'flex', flexDirection: 'column', gap: '10px'}}>
+                            {!selectedOrder.reviewed ? (
+                                <button 
+                                    style={{width: '100%', background: 'white', color: '#333', border: '1px solid #333', padding: '14px', borderRadius: '24px', fontSize: '15px', fontWeight: '700', cursor: 'pointer'}}
+                                    onClick={() => setShowReviewModal(true)}
+                                >
+                                    Değerlendir
+                                </button>
+                            ) : (
+                                <div style={{textAlign: 'center', padding: '10px', color: 'var(--brand-primary)', fontWeight: '700', fontSize: '14px'}}>
+                                    <i className="fa-solid fa-check-circle" style={{marginRight: '5px'}}></i> Değerlendirildi
+                                </div>
+                            )}
+                            <button 
+                                style={{width: '100%', background: 'var(--brand-primary)', color: 'white', border: 'none', padding: '14px', borderRadius: '24px', fontSize: '15px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'}}
+                                onClick={() => alert("Sipariş sepete eklendi.")}
+                            >
+                                <i className="fa-solid fa-arrow-rotate-right"></i> Siparişi Tekrarla
+                            </button>
+                        </div>
+
+                        {/* Review Modal inside Detail View */}
+                        {showReviewModal && (
+                            <>
+                                <div style={{position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.5)', zIndex: 1001}} onClick={() => setShowReviewModal(false)}></div>
+                                <div style={{position: 'fixed', bottom: 0, left: 0, width: '100%', height: '85vh', background: '#F0F2F5', borderTopLeftRadius: '24px', borderTopRightRadius: '24px', zIndex: 1002, display: 'flex', flexDirection: 'column', animation: 'slideUp 0.3s ease'}}>
+                                    <div style={{padding: '20px', background: 'white', borderTopLeftRadius: '24px', borderTopRightRadius: '24px', position: 'sticky', top: 0, zIndex: 10, boxShadow: '0 2px 10px rgba(0,0,0,0.05)'}}>
+                                        <div style={{width: '40px', height: '4px', background: '#333', borderRadius: '2px', margin: '0 auto 15px'}}></div>
+                                        <h3 style={{textAlign: 'center', fontSize: '18px', fontWeight: '800', margin: 0}}>Sipariş Değerlendirme</h3>
+                                    </div>
+                                    <div style={{flex: 1, overflowY: 'auto', padding: '20px'}}>
+                                        <StarRating label="Deneyimin nasıldı?" field="deneyim" />
+                                        <StarRating label="Lezzet" field="lezzet" />
+                                        <StarRating label="Hız" field="hiz" />
+                                        <StarRating label="Ortam" field="ortam" />
+                                        <StarRating label="Personel" field="personel" />
+                                        <StarRating label="Ödediğin paraya değer mi?" field="deger" />
+                                        
+                                        <div style={{fontSize: '13px', color: '#EF4444', marginBottom: '15px', fontWeight: '500'}}>Devam etmek için tüm soruları doldurmalısın.</div>
+                                        
+                                        <div style={{background: 'white', borderRadius: '12px', padding: '15px'}}>
+                                            <textarea 
+                                                style={{width: '100%', border: 'none', resize: 'none', height: '80px', fontSize: '14px', outline: 'none'}}
+                                                placeholder="Deneyimin ile ilgili notunu buraya yazabilirsin."
+                                                value={reviewText}
+                                                onChange={(e) => setReviewText(e.target.value)}
+                                            ></textarea>
+                                        </div>
+                                    </div>
+                                    <div style={{padding: '15px', background: 'white', borderTop: '1px solid #E2E4E8'}}>
+                                        <button 
+                                            style={{width: '100%', background: 'var(--brand-primary)', color: 'white', border: 'none', padding: '16px', borderRadius: '24px', fontSize: '16px', fontWeight: '700', cursor: 'pointer'}}
+                                            onClick={handleReviewSubmit}
+                                        >
+                                            Gönder
+                                        </button>
+                                    </div>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                );
+            }
+
+            // LIST VIEW
+            return (
+                <div style={{position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: '#F0F2F5', zIndex: 1000, overflowY: 'auto', display: 'flex', flexDirection: 'column'}}>
+                    <div className="app-header" style={{display: 'flex', alignItems: 'center', position: 'sticky', top: 0, zIndex: 10, borderRadius: 0}}>
+                        <i className="fa-solid fa-arrow-left" style={{fontSize: '20px', cursor: 'pointer', position: 'absolute', left: '20px'}} onClick={onBack}></i>
+                        <h2 style={{margin: '0 auto', fontSize: '18px', fontWeight: '500'}}>Önceki Siparişlerim</h2>
+                    </div>
+
+                    <div style={{flex: 1, padding: '15px', display: 'flex', flexDirection: 'column', gap: '15px', paddingBottom: '30px'}}>
+                        {orders.length === 0 ? (
+                            <div style={{textAlign: 'center', color: '#888', marginTop: '40px', fontSize: '15px'}}>
+                                <i className="fa-solid fa-receipt" style={{fontSize: '40px', color: '#D1D5DB', marginBottom: '15px'}}></i>
+                                <p>Henüz geçmiş siparişin bulunmuyor.</p>
+                            </div>
+                        ) : (
+                            orders.slice().reverse().map(order => {
+                                const merchant = merchants.find(m => m.id === order.merchantId) || {name: "Bilinmeyen"};
+                                return (
+                                    <div key={order.id} style={{background: 'white', borderRadius: '12px', padding: '15px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)'}}>
+                                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px'}}>
+                                            <div style={{fontSize: '13px', fontWeight: '700', color: '#333'}}>
+                                                {order.date} | 0 TL
+                                            </div>
+                                            <div 
+                                                style={{fontSize: '13px', color: '#666', display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer'}}
+                                                onClick={() => { setSelectedOrder(order); setViewMode('detail'); }}
+                                            >
+                                                Sipariş Detayı <i className="fa-solid fa-chevron-right" style={{fontSize: '10px'}}></i>
+                                            </div>
+                                        </div>
+                                        
+                                        <div style={{fontSize: '14px', color: '#888', marginBottom: '15px'}}>
+                                            1 x {order.desc}
+                                        </div>
+                                        
+                                        <div style={{display: 'inline-block', background: 'rgba(137, 176, 54, 0.15)', color: 'var(--brand-primary)', padding: '5px 10px', borderRadius: '8px', fontWeight: '700', fontSize: '12px', marginBottom: '20px'}}>
+                                            Teslim Edildi
+                                        </div>
+                                        
+                                        <div style={{display: 'flex', gap: '10px'}}>
+                                            {!order.reviewed ? (
+                                                <button 
+                                                    style={{flex: 1, background: 'white', color: '#333', border: '1px solid #333', padding: '10px', borderRadius: '24px', fontSize: '13px', fontWeight: '700', cursor: 'pointer'}}
+                                                    onClick={() => { setSelectedOrder(order); setShowReviewModal(true); }}
+                                                >
+                                                    Değerlendir
+                                                </button>
+                                            ) : (
+                                                <button 
+                                                    style={{flex: 1, background: '#F8F9FA', color: 'var(--brand-primary)', border: '1px solid #E2E4E8', padding: '10px', borderRadius: '24px', fontSize: '13px', fontWeight: '700', cursor: 'not-allowed'}}
+                                                    disabled
+                                                >
+                                                    <i className="fa-solid fa-check"></i> Değerlendirildi
+                                                </button>
+                                            )}
+                                            <button 
+                                                style={{flex: 1, background: 'white', color: '#333', border: '1px solid #333', padding: '10px', borderRadius: '24px', fontSize: '13px', fontWeight: '700', cursor: 'pointer'}}
+                                                onClick={() => alert("Sipariş sepete eklendi.")}
+                                            >
+                                                Siparişi Tekrarla
+                                            </button>
+                                        </div>
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
+
+                    {/* Review Modal inside List View */}
+                    {showReviewModal && selectedOrder && (
+                        <>
+                            <div style={{position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.5)', zIndex: 1001}} onClick={() => setShowReviewModal(false)}></div>
+                            <div style={{position: 'fixed', bottom: 0, left: 0, width: '100%', height: '85vh', background: '#F0F2F5', borderTopLeftRadius: '24px', borderTopRightRadius: '24px', zIndex: 1002, display: 'flex', flexDirection: 'column', animation: 'slideUp 0.3s ease'}}>
+                                <div style={{padding: '20px', background: 'white', borderTopLeftRadius: '24px', borderTopRightRadius: '24px', position: 'sticky', top: 0, zIndex: 10, boxShadow: '0 2px 10px rgba(0,0,0,0.05)'}}>
+                                    <div style={{width: '40px', height: '4px', background: '#333', borderRadius: '2px', margin: '0 auto 15px'}}></div>
+                                    <h3 style={{textAlign: 'center', fontSize: '18px', fontWeight: '800', margin: 0}}>Sipariş Değerlendirme</h3>
+                                </div>
+                                <div style={{flex: 1, overflowY: 'auto', padding: '20px'}}>
+                                    <StarRating label="Deneyimin nasıldı?" field="deneyim" />
+                                    <StarRating label="Lezzet" field="lezzet" />
+                                    <StarRating label="Hız" field="hiz" />
+                                    <StarRating label="Ortam" field="ortam" />
+                                    <StarRating label="Personel" field="personel" />
+                                    <StarRating label="Ödediğin paraya değer mi?" field="deger" />
+                                    
+                                    <div style={{fontSize: '13px', color: '#EF4444', marginBottom: '15px', fontWeight: '500'}}>Devam etmek için tüm soruları doldurmalısın.</div>
+                                    
+                                    <div style={{background: 'white', borderRadius: '12px', padding: '15px'}}>
+                                        <textarea 
+                                            style={{width: '100%', border: 'none', resize: 'none', height: '80px', fontSize: '14px', outline: 'none'}}
+                                            placeholder="Deneyimin ile ilgili notunu buraya yazabilirsin."
+                                            value={reviewText}
+                                            onChange={(e) => setReviewText(e.target.value)}
+                                        ></textarea>
+                                    </div>
+                                </div>
+                                <div style={{padding: '15px', background: 'white', borderTop: '1px solid #E2E4E8'}}>
+                                    <button 
+                                        style={{width: '100%', background: 'var(--brand-primary)', color: 'white', border: 'none', padding: '16px', borderRadius: '24px', fontSize: '16px', fontWeight: '700', cursor: 'pointer'}}
+                                        onClick={handleReviewSubmit}
+                                    >
+                                        Gönder
+                                    </button>
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </div>
+            );
+        };
+
+        const ProfileReferral = ({onBack}) => {
+            const [showModal, setShowModal] = useState(false);
+
+            return (
+                <div style={{position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: '#F0F2F5', zIndex: 1000, overflowY: 'auto', display: 'flex', flexDirection: 'column'}}>
+                    {/* Header */}
+                    <div className="app-header" style={{display: 'flex', alignItems: 'center', position: 'sticky', top: 0, zIndex: 10, borderRadius: 0}}>
+                        <i className="fa-solid fa-arrow-left" style={{fontSize: '20px', cursor: 'pointer', position: 'absolute', left: '20px'}} onClick={onBack}></i>
+                        <h2 style={{margin: '0 auto', fontSize: '18px', fontWeight: '500'}}>Arkadaşına Öner</h2>
+                    </div>
+
+                    {/* Content */}
+                    <div style={{flex: 1, padding: '20px', display: 'flex', flexDirection: 'column'}}>
+                        <div style={{background: 'white', borderRadius: '12px', padding: '30px 20px', textAlign: 'center', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', flex: 1}}>
+                            <div style={{width: '70px', height: '70px', background: 'var(--brand-primary)', borderRadius: '50%', margin: '0 auto 20px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 0 5px rgba(137, 176, 54, 0.3)'}}>
+                                <i className="fa-solid fa-handshake-angle" style={{fontSize: '30px', color: 'white'}}></i>
+                            </div>
+                            
+                            <h3 style={{fontSize: '22px', fontWeight: '800', marginBottom: '15px', color: '#111'}}>Arkadaşına Öner</h3>
+                            
+                            <p style={{fontSize: '14px', color: '#888', marginBottom: '20px', lineHeight: '1.5'}}>
+                                Coffy uygulamasını Arkadaşına Öner, arkadaşın en az 80 TL'lik sipariş verdiğinde bedava kahve kazan!
+                            </p>
+                            
+                            <div style={{display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '13px', fontWeight: '700', marginBottom: '30px', cursor: 'pointer', color: '#333'}}>
+                                <i className="fa-solid fa-clipboard-list"></i>
+                                <span>Katılım Koşulları</span>
+                            </div>
+                            
+                            <div style={{background: '#F8F9FA', borderRadius: '12px', padding: '20px', display: 'flex', justifyContent: 'center', alignItems: 'center'}}>
+                                <div style={{flex: 1, textAlign: 'center', borderRight: '1px solid #E2E4E8'}}>
+                                    <div style={{fontSize: '13px', fontWeight: '700', marginBottom: '5px', color: '#333'}}>Davet Edilen</div>
+                                    <div style={{fontSize: '24px', fontWeight: '800', color: 'var(--brand-primary)'}}>0</div>
+                                </div>
+                                <div style={{flex: 1, textAlign: 'center'}}>
+                                    <div style={{fontSize: '13px', fontWeight: '700', marginBottom: '5px', color: '#333'}}>Toplam Kazanım</div>
+                                    <div style={{fontSize: '24px', fontWeight: '800', color: 'var(--brand-primary)'}}>0 Kahve</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Bottom Button */}
+                    <div style={{padding: '20px', background: 'white', borderTop: '1px solid #E2E4E8', position: 'sticky', bottom: 0}}>
+                        <button 
+                            style={{width: '100%', background: 'var(--brand-primary)', color: 'white', border: 'none', padding: '16px', borderRadius: '24px', fontSize: '16px', fontWeight: '600', cursor: 'pointer'}}
+                            onClick={() => setShowModal(true)}
+                        >
+                            Arkadaşını Davet Et
+                        </button>
+                    </div>
+
+                    {/* Modal/Bottom Sheet */}
+                    {showModal && (
+                        <>
+                            <div 
+                                style={{position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.5)', zIndex: 1001}}
+                                onClick={() => setShowModal(false)}
+                            ></div>
+                            <div style={{position: 'fixed', bottom: 0, left: 0, width: '100%', background: 'white', borderTopLeftRadius: '24px', borderTopRightRadius: '24px', zIndex: 1002, padding: '20px', display: 'flex', flexDirection: 'column', animation: 'slideUp 0.3s ease'}}>
+                                <div style={{width: '40px', height: '4px', background: '#333', borderRadius: '2px', margin: '0 auto 20px'}}></div>
+                                
+                                <h3 style={{textAlign: 'center', fontSize: '20px', fontWeight: '800', marginBottom: '10px'}}>Arkadaşını Davet Et</h3>
+                                <p style={{textAlign: 'center', fontSize: '14px', color: '#666', marginBottom: '25px', padding: '0 20px'}}>
+                                    Arkadaşının telefon numarasını gir ve fırsatları birlikte yakala!
+                                </p>
+                                
+                                <label style={{fontSize: '14px', fontWeight: '700', marginBottom: '10px', display: 'block'}}>Telefon Numarası</label>
+                                <input 
+                                    type="tel" 
+                                    placeholder="5xx xxx xx xx" 
+                                    style={{width: '100%', padding: '15px', borderRadius: '24px', border: '1px solid #E2E4E8', fontSize: '16px', outline: 'none', marginBottom: '20px'}}
+                                />
+                                
+                                <button style={{width: '100%', background: '#F0F2F5', color: '#A0A5B1', border: 'none', padding: '16px', borderRadius: '24px', fontSize: '16px', fontWeight: '600', marginBottom: '20px'}}>
+                                    Gönder
+                                </button>
+                                
+                                <div style={{display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px'}}>
+                                    <div style={{flex: 1, height: '1px', background: '#E2E4E8'}}></div>
+                                    <span style={{fontSize: '12px', color: '#888', fontWeight: '600'}}>VEYA</span>
+                                    <div style={{flex: 1, height: '1px', background: '#E2E4E8'}}></div>
+                                </div>
+                                
+                                <button style={{width: '100%', background: 'white', color: '#333', border: '1px solid #E2E4E8', padding: '16px', borderRadius: '24px', fontSize: '16px', fontWeight: '700', cursor: 'pointer', marginBottom: '10px', boxShadow: '0 2px 5px rgba(0,0,0,0.05)'}}>
+                                    Rehberden Seç
+                                </button>
+                            </div>
+                        </>
+                    )}
+                </div>
+            );
+        };
+
+        const ProfileScreen = ({ onLogout, favorites, toggleFavorite, orders, addReview, reviews, onMerchantClick }) => {
+            const [subScreen, setSubScreen] = useState(null);
+
+            if (subScreen === 'edit') return <div className="screen-content"><ProfileEdit onBack={() => setSubScreen(null)} /></div>;
+            if (subScreen === 'orders') return <div className="screen-content"><ProfileOrders onBack={() => setSubScreen(null)} orders={orders} addReview={addReview} /></div>;
+            if (subScreen === 'favorites') return <div className="screen-content"><ProfileFavorites onBack={() => setSubScreen(null)} favorites={favorites} toggleFavorite={toggleFavorite} onMerchantClick={onMerchantClick} /></div>;
+            if (subScreen === 'reviews') return <div className="screen-content"><ProfileReviews onBack={() => setSubScreen(null)} reviews={reviews} /></div>;
+            if (subScreen === 'settings') return <ProfileSettings onBack={() => setSubScreen(null)} />;
+            if (subScreen === 'referral') return <ProfileReferral onBack={() => setSubScreen(null)} />;
+            if (subScreen === 'help') return <ProfileHelpCenter onBack={() => setSubScreen(null)} />;
+            if (subScreen === 'branches') return <ProfileBranches onBack={() => setSubScreen(null)} />;
+            if (subScreen === 'language') return <ProfileLanguage onBack={() => setSubScreen(null)} />;
+            if (subScreen === 'cards') return <ProfileCards onBack={() => setSubScreen(null)} />;
+
+            return (
+                <div className="screen-content" style={{paddingTop: '20px'}}>
+                    <div className="profile-grid" style={{display: 'block', maxWidth: '600px', margin: '0 auto'}}>
+                        
+                        <div style={{display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '15px'}}>
+                            {/* Öğrenci Bilgilerim */}
+                            <div style={{background: '#7AC1B3', borderRadius: '16px', padding: '20px', display: 'flex', alignItems: 'center', gap: '15px', color: 'white', cursor: 'pointer', boxShadow: 'var(--shadow-sm)'}}>
+                                <div style={{width: '50px', height: '50px', background: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0}}>
+                                    <i className="fa-solid fa-user-graduate" style={{color: '#333', fontSize: '20px'}}></i>
+                                </div>
+                                <div style={{flex: 1}}>
+                                    <div style={{fontSize: '16px', fontWeight: '700', marginBottom: '3px'}}>Öğrenci Bilgilerim</div>
+                                    <div style={{fontSize: '13px', opacity: 0.9}}>Öğrenci Bilgilerini Gir, Kimliğini Doğrula!</div>
+                                </div>
+                                <i className="fa-solid fa-chevron-right" style={{color: 'white', fontSize: '16px'}}></i>
+                            </div>
+
+                            {/* Kişisel Bilgiler */}
+                            <div style={{background: 'white', borderRadius: '16px', padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: 'var(--shadow-sm)'}}>
+                                <div>
+                                    <div style={{fontSize: '13px', color: 'var(--text-muted)', marginBottom: '5px'}}>Kişisel Bilgiler</div>
+                                    <div style={{fontSize: '18px', fontWeight: '700', color: 'var(--text-main)'}}>Abdulkadir Kaygısız</div>
+                                </div>
+                                <div onClick={() => setSubScreen('edit')} style={{width: '40px', height: '40px', borderRadius: '50%', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer'}}>
+                                    <i className="fa-solid fa-pen" style={{color: 'var(--text-main)', fontSize: '14px'}}></i>
+                                </div>
+                            </div>
+
+                            {/* Telefon Numarası */}
+                            <div style={{background: 'white', borderRadius: '16px', padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: 'var(--shadow-sm)'}}>
+                                <div>
+                                    <div style={{fontSize: '13px', color: 'var(--text-muted)', marginBottom: '5px'}}>Telefon Numarası</div>
+                                    <div style={{fontSize: '18px', fontWeight: '700', color: 'var(--text-main)'}}>5510658914</div>
+                                </div>
+                                <div onClick={() => setSubScreen('edit')} style={{width: '40px', height: '40px', borderRadius: '50%', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer'}}>
+                                    <i className="fa-solid fa-pen" style={{color: 'var(--text-main)', fontSize: '14px'}}></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style={{display: 'flex', flexDirection: 'column', gap: '12px'}}>
+                            <div className="menu-card" onClick={() => setSubScreen('referral')}>
+                                <i className="fa-solid fa-handshake-angle"></i>
+                                <span>Arkadaşına Öner</span>
+                                <i className="fa-solid fa-chevron-right"></i>
+                            </div>
+                            <div className="menu-card" onClick={() => setSubScreen('favorites')}>
+                                <i className="fa-regular fa-heart"></i>
+                                <span>Favorilerim</span>
+                                <i className="fa-solid fa-chevron-right"></i>
+                            </div>
+                            <div className="menu-card" onClick={() => setSubScreen('orders')}>
+                                <i className="fa-solid fa-bag-shopping"></i>
+                                <span>Önceki Siparişlerim</span>
+                                <i className="fa-solid fa-chevron-right"></i>
+                            </div>
+                            <div className="menu-card" onClick={() => setSubScreen('cards')}>
+                                <i className="fa-regular fa-credit-card"></i>
+                                <span>Kayıtlı Kartlarım</span>
+                                <i className="fa-solid fa-chevron-right"></i>
+                            </div>
+                            <div className="menu-card" onClick={() => setSubScreen('settings')}>
+                                <i className="fa-regular fa-bell"></i>
+                                <span>İletişim Tercihleri</span>
+                                <i className="fa-solid fa-chevron-right"></i>
+                            </div>
+                            <div className="menu-card" onClick={() => setSubScreen('help')}>
+                                <i className="fa-solid fa-life-ring"></i>
+                                <span>Yardım Merkezi</span>
+                                <i className="fa-solid fa-chevron-right"></i>
+                            </div>
+                            <div className="menu-card" onClick={() => setSubScreen('branches')}>
+                                <i className="fa-solid fa-store"></i>
+                                <span>Şubeler</span>
+                                <i className="fa-solid fa-chevron-right"></i>
+                            </div>
+                            <div className="menu-card" onClick={() => setSubScreen('language')}>
+                                <i className="fa-solid fa-globe"></i>
+                                <span>Dil Seçimi</span>
+                                <i className="fa-solid fa-chevron-right"></i>
+                            </div>
+                            <div className="menu-card" onClick={onLogout}>
+                                <i className="fa-solid fa-arrow-right-from-bracket"></i>
+                                <span>Çıkış Yap</span>
+                                <i className="fa-solid fa-chevron-right"></i>
+                            </div>
+                        </div>
+
+                        <div style={{display: 'flex', justifyContent: 'space-between', padding: '20px 10px', color: '#B0B0B0', fontSize: '13px', marginTop: '10px'}}>
+                            <span>Uygulama Versiyonu</span>
+                            <span>4.2.11 (161)</span>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const CouponsScreen = ({ coupons }) => {
+            const [tab, setTab] = useState('Dijital Kuponlar');
+            const filteredCoupons = coupons.filter(c => tab === 'Dijital Kuponlar' ? !c.used : c.used);
+
+            return (
+                <div className="screen-content">
+                    <div className="tabs" style={{background: 'transparent', padding: 0, borderBottom: '1px solid var(--border-color)', maxWidth: '100%', borderRadius: 0}}>
+                        <div className={`tab ${tab === 'Dijital Kuponlar' ? 'active' : ''}`} style={{background: 'transparent', color: tab === 'Dijital Kuponlar' ? 'var(--brand-primary)' : 'var(--text-muted)', borderBottom: tab === 'Dijital Kuponlar' ? '3px solid var(--brand-primary)' : 'none', borderRadius: 0, paddingBottom: '15px'}} onClick={() => setTab('Dijital Kuponlar')}>Kullanıma Hazır</div>
+                        <div className={`tab ${tab === 'Kullanılmış Kuponlar' ? 'active' : ''}`} style={{background: 'transparent', color: tab === 'Kullanılmış Kuponlar' ? 'var(--brand-primary)' : 'var(--text-muted)', borderBottom: tab === 'Kullanılmış Kuponlar' ? '3px solid var(--brand-primary)' : 'none', borderRadius: 0, paddingBottom: '15px'}} onClick={() => setTab('Kullanılmış Kuponlar')}>Geçmiş Kuponlar</div>
+                    </div>
+                    
+                    <div className="coupon-grid">
+                        {filteredCoupons.length === 0 ? (
+                            <div style={{gridColumn: '1 / -1', textAlign: 'center', color: 'var(--text-muted)', padding: '40px 0'}}>
+                                <i className="fa-solid fa-ticket" style={{fontSize: '40px', color: '#DDD', marginBottom: '15px'}}></i>
+                                <p>Bu kategoride gösterilecek kupon bulunmamaktadır.</p>
+                            </div>
+                        ) : (
+                            filteredCoupons.map((c, idx) => (
+                                <div key={idx} className="coupon-item" style={{opacity: c.used ? 0.6 : 1, background: c.used ? '#F8F9FA' : 'white'}}>
+                                    <img src={c.img} alt={c.title} style={{filter: c.used ? 'grayscale(100%)' : 'none'}}/>
+                                    <div className="coupon-info">
+                                        <h4 style={{color: c.used ? 'var(--text-muted)' : 'var(--text-main)'}}>{c.title}</h4>
+                                        <p><i className="fa-solid fa-store" style={{marginRight: '5px', color: c.used ? 'inherit' : 'var(--brand-primary)'}}></i>{c.desc}</p>
+                                    </div>
+                                    {!c.used ? (
+                                        <button className="coupon-btn" onClick={() => alert("Kuponunuz aktif! Damga işlemi için kasada QR kodunuzu gösterin.")}>Kullan</button>
+                                    ) : (
+                                        <span style={{fontWeight: '700', color: 'var(--text-muted)', fontSize: '13px', paddingRight: '10px'}}>Kullanıldı</span>
+                                    )}
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        // --- MAIN APP COMPONENT ---
+        const App = () => {
+            // Check LocalStorage for Login State
+            const [isLoggedIn, setIsLoggedIn] = useState(() => {
+                const saved = localStorage.getItem('mudavim_isLoggedIn');
+                return saved ? JSON.parse(saved) : false;
+            });
+            const [currentTab, setCurrentTab] = useState('home');
+            const [selectedMerchant, setSelectedMerchant] = useState(null);
+
+            // --- LIFTED STATES WITH LOCALSTORAGE PERSISTENCE ---
+            const [favorites, setFavorites] = useState(() => {
+                const saved = localStorage.getItem('mudavim_favorites');
+                return saved ? JSON.parse(saved) : [];
+            }); 
+            
+            const [coupons, setCoupons] = useState(() => {
+                const saved = localStorage.getItem('mudavim_coupons');
+                return saved ? JSON.parse(saved) : initialCoupons;
+            });
+            
+            const [orders, setOrders] = useState(() => {
+                const saved = localStorage.getItem('mudavim_orders');
+                if (saved && JSON.parse(saved).length > 0) return JSON.parse(saved);
+                // Pre-populate with a dummy order for testing the UI
+                return [{
+                    id: "6a06021b97625239e9b2b523",
+                    merchantId: 1,
+                    date: "14.05.2026, 20:11",
+                    desc: "Mocha Frappe",
+                    reviewed: false
+                }];
+            });
+            
+            const [reviews, setReviews] = useState(() => {
+                const saved = localStorage.getItem('mudavim_reviews');
+                return saved ? JSON.parse(saved) : [];
+            });
+
+            // Save to LocalStorage whenever state changes
+            useEffect(() => { localStorage.setItem('mudavim_isLoggedIn', JSON.stringify(isLoggedIn)); }, [isLoggedIn]);
+            useEffect(() => { localStorage.setItem('mudavim_favorites', JSON.stringify(favorites)); }, [favorites]);
+            useEffect(() => { localStorage.setItem('mudavim_coupons', JSON.stringify(coupons)); }, [coupons]);
+            useEffect(() => { localStorage.setItem('mudavim_orders', JSON.stringify(orders)); }, [orders]);
+            useEffect(() => { localStorage.setItem('mudavim_reviews', JSON.stringify(reviews)); }, [reviews]);
+
+            // Handle routing resets
+            useEffect(() => {
+                if (selectedMerchant === null) {
+                    window.scrollTo(0, 0);
+                }
+            }, [currentTab, selectedMerchant]);
+
+            // --- STATE HANDLERS ---
+            const toggleFavorite = (merchantId) => {
+                setFavorites(prev => 
+                    prev.includes(merchantId) 
+                        ? prev.filter(id => id !== merchantId)
+                        : [...prev, merchantId]
+                );
+            };
+
+            const addOrder = (merchantId, desc) => {
+                const newOrder = {
+                    id: Date.now(),
+                    merchantId: merchantId,
+                    date: new Date().toLocaleDateString('tr-TR') + ", " + new Date().toLocaleTimeString('tr-TR', {hour: '2-digit', minute:'2-digit'}),
+                    desc: desc,
+                    reviewed: false
+                };
+                setOrders(prev => [...prev, newOrder]);
+            };
+
+            const addReview = (orderId, merchantId, rating, text) => {
+                const newReview = {
+                    id: Date.now(),
+                    merchantId: merchantId,
+                    rating: rating,
+                    text: text,
+                    date: new Date().toLocaleDateString('tr-TR')
+                };
+                setReviews(prev => [...prev, newReview]);
+                setOrders(prev => prev.map(o => o.id === orderId ? { ...o, reviewed: true } : o));
+            };
+
+            const handleMerchantClick = (merchant) => {
+                setSelectedMerchant(merchant);
+            };
+
+            if (!isLoggedIn) {
+                return <LoginScreen onLogin={() => setIsLoggedIn(true)} />;
+            }
+
+            // Render Merchant Detail Page if selected
+            if (selectedMerchant) {
+                return (
+                    <MerchantDetailScreen 
+                        merchant={selectedMerchant}
+                        onBack={() => setSelectedMerchant(null)}
+                        isFavorite={favorites.includes(selectedMerchant.id)}
+                        toggleFavorite={toggleFavorite}
+                        onQrClick={() => {
+                            setSelectedMerchant(null);
+                            setCurrentTab('qr');
+                        }}
+                    />
+                );
+            }
+
+            return (
+                <>
+                    {/* TOP HEADER (Responsive) */}
+                    {currentTab === 'profile' ? (
+                        <div className="app-header" style={{display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative'}}>
+                            <div style={{fontSize: '18px', fontWeight: '500'}}>Hesabım</div>
+                            <div style={{position: 'absolute', right: '20px', cursor: 'pointer'}} onClick={() => alert("Henüz yeni bildiriminiz yok.")}>
+                                <i className="fa-regular fa-bell" style={{fontSize: '22px'}}></i>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="app-header">
+                            <div className="header-container" style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                                <div style={{ position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)' }}>
+                                    <i 
+                                        className="fa-solid fa-map-location-dot" 
+                                        style={{fontSize: '22px', cursor: 'pointer', color: currentTab === 'map' ? 'white' : 'rgba(255,255,255,0.7)'}} 
+                                        onClick={() => setCurrentTab('map')} 
+                                        title="Haritada Ara"
+                                    ></i>
+                                </div>
+                                
+                                <div style={{display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer'}} onClick={() => setCurrentTab('home')}>
+                                    <i className="fa-solid fa-stamp" style={{fontSize: '24px'}}></i>
+                                    <h1 style={{fontSize: '22px', fontWeight: '800', margin: 0, letterSpacing: '1px'}}>MÜDAVİM</h1>
+                                </div>
+                                
+                                {/* Desktop Navigation Links */}
+                                <div className="desktop-nav" style={{marginLeft: '40px', marginRight: '40px'}}>
+                                    <span className={`desktop-nav-item ${currentTab === 'home' ? 'active' : ''}`} onClick={() => setCurrentTab('home')}>Ana Menü</span>
+                                    <span className={`desktop-nav-item ${currentTab === 'search' ? 'active' : ''}`} onClick={() => setCurrentTab('search')}>Arama & Keşfet</span>
+                                    <span className={`desktop-nav-item ${currentTab === 'qr' ? 'active' : ''}`} onClick={() => setCurrentTab('qr')}>QR İşlemleri</span>
+                                    <span className={`desktop-nav-item ${currentTab === 'coupons' ? 'active' : ''}`} onClick={() => setCurrentTab('coupons')}>Ödüllerim</span>
+                                    <span className={`desktop-nav-item ${currentTab === 'profile' ? 'active' : ''}`} onClick={() => setCurrentTab('profile')}>Hesabım</span>
+                                </div>
+
+                                <div style={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)' }}>
+                                    <i className="fa-regular fa-bell" style={{fontSize: '22px', cursor: 'pointer'}} onClick={() => alert("Henüz yeni bildiriminiz yok.")}></i>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {currentTab === 'home' && <HomeScreen favorites={favorites} toggleFavorite={toggleFavorite} onMerchantClick={handleMerchantClick} />}
+                    {currentTab === 'search' && <SearchScreen favorites={favorites} toggleFavorite={toggleFavorite} onMerchantClick={handleMerchantClick} />}
+                    {currentTab === 'map' && <MapScreen merchants={merchants} onMerchantClick={handleMerchantClick} />}
+                    {currentTab === 'qr' && <QRScreen addOrder={addOrder} />}
+                    {currentTab === 'profile' && (
+                        <ProfileScreen 
+                            onLogout={() => {setIsLoggedIn(false); setCurrentTab('home');}} 
+                            favorites={favorites}
+                            toggleFavorite={toggleFavorite}
+                            orders={orders}
+                            addReview={addReview}
+                            reviews={reviews}
+                            onMerchantClick={handleMerchantClick}
+                        />
+                    )}
+                    {currentTab === 'coupons' && <CouponsScreen coupons={coupons} />}
+
+                    {/* BOTTOM NAV (Mobile Only) */}
+                    <div className="bottom-nav">
+                        <div className={`nav-item ${currentTab === 'home' ? 'active' : ''}`} onClick={() => setCurrentTab('home')}>
+                            <i className="fa-solid fa-house"></i>
+                            <span>Anasayfa</span>
+                        </div>
+                        <div className={`nav-item ${currentTab === 'search' ? 'active' : ''}`} onClick={() => setCurrentTab('search')}>
+                            <i className="fa-solid fa-magnifying-glass"></i>
+                            <span>Arama</span>
+                        </div>
+                        <div className={`nav-item floating-container ${currentTab === 'qr' ? 'active' : ''}`} onClick={() => setCurrentTab('qr')}>
+                            <div className="floating-btn-circle">
+                                <i className="fa-solid fa-qrcode"></i>
+                            </div>
+                            <span style={{marginTop: '35px'}}>Okut</span>
+                        </div>
+                        <div className={`nav-item ${currentTab === 'coupons' ? 'active' : ''}`} onClick={() => setCurrentTab('coupons')}>
+                            <i className="fa-solid fa-gift"></i>
+                            <span>Kampanyalar</span>
+                        </div>
+                        <div className={`nav-item ${currentTab === 'profile' ? 'active' : ''}`} onClick={() => setCurrentTab('profile')}>
+                            <i className={`${currentTab === 'profile' ? 'fa-solid' : 'fa-regular'} fa-user`}></i>
+                            <span>Hesabım</span>
+                        </div>
+                    </div>
+                </>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
