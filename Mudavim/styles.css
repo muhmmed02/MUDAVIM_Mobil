@@ -433,3 +433,16 @@ h1, h2, h3, h4, h5, h6 {
 .floating-btn-circle i { font-size: 32px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); margin: 0; }
 .nav-item.floating-container.active .floating-btn-circle { background: radial-gradient(circle at top left, #a5d65c, var(--brand-secondary)); box-shadow: 0 10px 25px rgba(137, 176, 54, 0.8), inset 0 -4px 10px rgba(0,0,0,0.3); transform: scale(1.05); }
 .nav-item.floating-container.active span { color: var(--brand-primary) !important; font-weight: 700; }
+
+@keyframes scanLineMove {
+    0% { top: 10%; }
+    50% { top: 90%; }
+    100% { top: 10%; }
+}
+
+
+@keyframes qrPulse {
+    0%   { transform: translate(-50%, -50%) scale(1);   opacity: 0.8; }
+    50%  { transform: translate(-50%, -50%) scale(1.7); opacity: 0.2; }
+    100% { transform: translate(-50%, -50%) scale(1);   opacity: 0.8; }
+}
