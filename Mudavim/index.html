@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
@@ -528,7 +528,7 @@
             );
         };
 
-        const MerchantDetailScreen = ({ merchant, onBack, isFavorite, toggleFavorite, onQrClick, onAddToCart, onRemoveFromCart, cart, lang, t }) => {
+        const MerchantDetailScreen = ({ merchant, onBack, isFavorite, toggleFavorite, onShowCart, onAddToCart, onRemoveFromCart, cart, lang, t, showCartModal, setShowCartModal, setCart, handleCheckout }) => {
             return (
                 <div style={{background: '#f8f9fa', minHeight: '100vh', paddingBottom: '100px'}}>
                     <div style={{position: 'relative', height: '280px', width: '100%'}}>
@@ -643,11 +643,82 @@
                             ))}
                         </div>
 
-                        <button className="btn-orange" style={{width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', fontSize: '18px', padding: '16px'}} onClick={onQrClick}>
-                            <i className="fa-solid fa-qrcode" style={{fontSize: '22px'}}></i>
-                            {lang === 'tr' ? 'Şimdi QR Okut' : 'Scan QR Now'}
-                        </button>
+                        {cart && cart.reduce((sum, item) => sum + item.qty, 0) > 0 && (
+                            <button 
+                                className="btn-orange" 
+                                style={{
+                                    position: 'fixed', bottom: '20px', left: '50%', transform: 'translateX(-50%)', width: 'calc(100% - 40px)', maxWidth: '400px', zIndex: 1000,
+                                    display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
+                                    padding: '16px 24px', borderRadius: '30px', boxShadow: '0 4px 15px rgba(255,107,107,0.4)',
+                                    fontWeight: '700', fontSize: '16px'
+                                }} 
+                                onClick={onShowCart}
+                            >
+                                <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+                                    <div style={{background: 'rgba(255,255,255,0.2)', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                                        {cart.reduce((sum, item) => sum + item.qty, 0)}
+                                    </div>
+                                    <span>{lang === 'tr' ? 'Sepeti Onayla' : 'Checkout'}</span>
+                                </div>
+                                <span>{cart.reduce((sum, item) => sum + (item.price * item.qty), 0)} TL</span>
+                            </button>
+                        )}
                     </div>
+                    {showCartModal && (
+                        <>
+                            <div style={{position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.5)', zIndex: 2000}} onClick={() => setShowCartModal(false)}></div>
+                            <div style={{position: 'fixed', bottom: 0, left: 0, width: '100%', maxHeight: '80vh', background: 'white', borderTopLeftRadius: '24px', borderTopRightRadius: '24px', zIndex: 2001, display: 'flex', flexDirection: 'column', animation: 'slideUp 0.3s ease'}}>
+                                <div style={{padding: '20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                                    <h3 style={{margin: 0, fontSize: '20px', fontWeight: '800'}}>
+                                        <i className="fa-solid fa-bag-shopping" style={{color: 'var(--brand-primary)', marginRight: '10px'}}></i>
+                                        {t('cart')}
+                                    </h3>
+                                    <i className="fa-solid fa-times" style={{fontSize: '22px', cursor: 'pointer', color: 'var(--text-muted)'}} onClick={() => setShowCartModal(false)}></i>
+                                </div>
+                                <div style={{flex: 1, overflowY: 'auto', padding: '15px'}}>
+                                    {cart.length === 0 ? (
+                                        <div style={{textAlign: 'center', color: 'var(--text-muted)', padding: '40px 0'}}>
+                                            <i className="fa-solid fa-bag-shopping" style={{fontSize: '50px', color: '#DDD', marginBottom: '15px'}}></i>
+                                            <p>{t('cartEmpty')}</p>
+                                        </div>
+                                    ) : (
+                                        cart.map(item => (
+                                            <div key={item.id} style={{display: 'flex', alignItems: 'center', gap: '15px', padding: '12px 0', borderBottom: '1px solid var(--border-color)'}}>
+                                                <img src={item.img} alt={item.name} style={{width: '60px', height: '60px', borderRadius: '10px', objectFit: 'cover'}} />
+                                                <div style={{flex: 1}}>
+                                                    <div style={{fontWeight: '700', fontSize: '15px'}}>{item.name}</div>
+                                                    <div style={{color: 'var(--brand-primary)', fontWeight: '800', fontSize: '14px'}}>{item.price} TL</div>
+                                                </div>
+                                                <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                                                    <button onClick={() => setCart(prev => prev.map(i => i.id === item.id ? {...i, qty: Math.max(1, i.qty - 1)} : i))} style={{width: '30px', height: '30px', borderRadius: '50%', border: '1px solid var(--border-color)', background: 'white', cursor: 'pointer', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>-</button>
+                                                    <span style={{fontWeight: '700', minWidth: '20px', textAlign: 'center'}}>{item.qty}</span>
+                                                    <button onClick={() => setCart(prev => prev.map(i => i.id === item.id ? {...i, qty: i.qty + 1} : i))} style={{width: '30px', height: '30px', borderRadius: '50%', background: 'var(--brand-primary)', border: 'none', color: 'white', cursor: 'pointer', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>+</button>
+                                                    <button onClick={() => setCart(prev => prev.filter(i => i.id !== item.id))} style={{width: '30px', height: '30px', borderRadius: '50%', background: '#FEE2E2', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                                                        <i className="fa-solid fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                                {cart.length > 0 && (
+                                    <div style={{padding: '15px', borderTop: '1px solid var(--border-color)'}}>
+                                        <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '15px', fontSize: '18px', fontWeight: '800'}}>
+                                            <span>{t('cartTotal')}</span>
+                                            <span style={{color: 'var(--brand-primary)'}}>{cart.reduce((s, i) => s + i.price * i.qty, 0)} TL</span>
+                                        </div>
+                                        <div style={{display: 'flex', gap: '10px'}}>
+                                            <button onClick={() => setCart([])} style={{flex: 1, background: 'white', color: '#64748B', border: '1px solid #64748B', padding: '14px', borderRadius: '24px', fontSize: '14px', fontWeight: '700', cursor: 'pointer'}}>{t('clearCart')}</button>
+                                            <button onClick={handleCheckout} style={{flex: 2, background: 'var(--brand-primary)', color: 'white', border: 'none', padding: '14px', borderRadius: '24px', fontSize: '14px', fontWeight: '700', cursor: 'pointer'}}>
+                                                <i className="fa-solid fa-check" style={{marginRight: '8px'}}></i>
+                                                {t('checkout')}
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </>
+                    )}
                 </div>
             );
         };
@@ -847,7 +918,7 @@
             );
         };
 
-        const HomeScreen = ({ favorites, toggleFavorite, onMerchantClick, lang, t }) => {
+        const HomeScreen = ({ favorites, toggleFavorite, onMerchantClick, lang, t, activeOrders }) => {
             const [tab, setTab] = useState('Restoran');
             const [campaignFilter, setCampaignFilter] = useState(null);
 
@@ -867,6 +938,58 @@
 
             return (
                 <div className="screen-content">
+                    {activeOrders && activeOrders.length > 0 && (
+                        <div style={{margin: '15px', padding: '15px', background: '#e0f2fe', borderRadius: '15px', border: '1px solid #7dd3fc'}}>
+                            <h3 style={{marginTop: 0, marginBottom: '10px', fontSize: '16px', color: '#0284c7'}}>
+                                <i className="fa-solid fa-spinner fa-spin" style={{marginRight: '8px'}}></i>
+                                {lang === 'tr' ? 'Aktif Siparişleriniz' : 'Your Active Orders'}
+                            </h3>
+                            {activeOrders.map(order => (
+                                <div 
+                                    key={order.id} 
+                                    onClick={() => {
+                                        if (order.type === 'yerinde' && order.status === 'bekliyor') {
+                                            setQrDataOverride(`MUDAVIM-SIPARIS-${order.id}`);
+                                            setCurrentTab('qr');
+                                            alert(lang === 'tr' ? 'Kasada onaylatmak için sipariş QR kodunuz yükleniyor.' : 'Loading order QR code for counter confirmation.');
+                                        }
+                                    }}
+                                    style={{
+                                        display: 'flex', 
+                                        justifyContent: 'space-between', 
+                                        marginBottom: '8px', 
+                                        paddingBottom: '8px', 
+                                        borderBottom: '1px solid rgba(0,0,0,0.1)',
+                                        cursor: order.type === 'yerinde' && order.status === 'bekliyor' ? 'pointer' : 'default'
+                                    }}
+                                    title={order.type === 'yerinde' && order.status === 'bekliyor' ? (lang === 'tr' ? 'QR Kodunu Göster' : 'Show QR Code') : ''}
+                                >
+                                    <div>
+                                        <div style={{fontWeight: 'bold'}}>{order.merchantName}</div>
+                                        <div style={{fontSize: '12px', color: '#64748B'}}>
+                                            {order.type === 'gel_al' 
+                                                ? (lang === 'tr' ? 'Gel-Al (Ödendi)' : 'Take-away (Paid)') 
+                                                : (lang === 'tr' ? 'Yerinde (Kasada)' : 'In-store (At counter)')}
+                                        </div>
+                                    </div>
+                                    <div style={{textAlign: 'right'}}>
+                                        <span style={{
+                                            background: order.status === 'hazir' ? '#22c55e' : (order.status === 'hazirlaniyor' ? '#3b82f6' : '#f59e0b'),
+                                            color: 'white', padding: '4px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 'bold'
+                                        }}>
+                                            {order.status === 'hazir' 
+                                                ? (lang === 'tr' ? 'Hazır' : 'Ready') 
+                                                : (order.status === 'hazirlaniyor' 
+                                                    ? (lang === 'tr' ? 'Hazırlanıyor' : 'Preparing') 
+                                                    : (lang === 'tr' ? 'Bekliyor' : 'Pending'))}
+                                        </span>
+                                        <div style={{fontSize: '12px', marginTop: '4px', fontWeight: 'bold'}}>{order.total} TL</div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
                     <div className="campaign-slider">
                         {campaigns.map(camp => (
                             <div 
@@ -1000,23 +1123,20 @@
             );
         };
 
-        const QRScreen = ({ addOrder, currentUser, cart, lang, t }) => {
+        const QRScreen = ({ addOrder, currentUser, cart, lang, t, qrDataOverride }) => {
             const [scannedData, setScannedData] = useState(null);
             const [qrMode, setQrMode] = useState('show'); 
             const [secondsLeft, setSecondsLeft] = useState(30);
             const [qrCodeUrl, setQrCodeUrl] = useState('');
 
             const updateQrCode = () => {
-                const payload = {
-                    userId: currentUser?.id,
-                    username: currentUser?.username,
-                    cart: cart ? cart.map(item => ({ id: item.id, name: item.name, qty: item.qty, price: item.price })) : [],
-                    discount: 0,
-                    total: cart ? cart.reduce((sum, item) => sum + item.price * item.qty, 0) : 0,
-                    timestamp: new Date().toISOString()
-                };
-                const qrData = encodeURIComponent(JSON.stringify(payload));
-                setQrCodeUrl(`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${qrData}`);
+                let qrData = "";
+                if (qrDataOverride) {
+                    qrData = qrDataOverride;
+                } else {
+                    qrData = `MUDAVIM-USER-${currentUser?.id}`;
+                }
+                setQrCodeUrl(`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrData)}`);
                 
                 // Save history
                 try {
@@ -1581,6 +1701,61 @@
                             </form>
                         )}
                     </div>
+                    {showCartModal && (
+                        <>
+                            <div style={{position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.5)', zIndex: 2000}} onClick={() => setShowCartModal(false)}></div>
+                            <div style={{position: 'fixed', bottom: 0, left: 0, width: '100%', maxHeight: '80vh', background: 'white', borderTopLeftRadius: '24px', borderTopRightRadius: '24px', zIndex: 2001, display: 'flex', flexDirection: 'column', animation: 'slideUp 0.3s ease'}}>
+                                <div style={{padding: '20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                                    <h3 style={{margin: 0, fontSize: '20px', fontWeight: '800'}}>
+                                        <i className="fa-solid fa-bag-shopping" style={{color: 'var(--brand-primary)', marginRight: '10px'}}></i>
+                                        {t('cart')}
+                                    </h3>
+                                    <i className="fa-solid fa-times" style={{fontSize: '22px', cursor: 'pointer', color: 'var(--text-muted)'}} onClick={() => setShowCartModal(false)}></i>
+                                </div>
+                                <div style={{flex: 1, overflowY: 'auto', padding: '15px'}}>
+                                    {cart.length === 0 ? (
+                                        <div style={{textAlign: 'center', color: 'var(--text-muted)', padding: '40px 0'}}>
+                                            <i className="fa-solid fa-bag-shopping" style={{fontSize: '50px', color: '#DDD', marginBottom: '15px'}}></i>
+                                            <p>{t('cartEmpty')}</p>
+                                        </div>
+                                    ) : (
+                                        cart.map(item => (
+                                            <div key={item.id} style={{display: 'flex', alignItems: 'center', gap: '15px', padding: '12px 0', borderBottom: '1px solid var(--border-color)'}}>
+                                                <img src={item.img} alt={item.name} style={{width: '60px', height: '60px', borderRadius: '10px', objectFit: 'cover'}} />
+                                                <div style={{flex: 1}}>
+                                                    <div style={{fontWeight: '700', fontSize: '15px'}}>{item.name}</div>
+                                                    <div style={{color: 'var(--brand-primary)', fontWeight: '800', fontSize: '14px'}}>{item.price} TL</div>
+                                                </div>
+                                                <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                                                    <button onClick={() => setCart(prev => prev.map(i => i.id === item.id ? {...i, qty: Math.max(1, i.qty - 1)} : i))} style={{width: '30px', height: '30px', borderRadius: '50%', border: '1px solid var(--border-color)', background: 'white', cursor: 'pointer', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>-</button>
+                                                    <span style={{fontWeight: '700', minWidth: '20px', textAlign: 'center'}}>{item.qty}</span>
+                                                    <button onClick={() => setCart(prev => prev.map(i => i.id === item.id ? {...i, qty: i.qty + 1} : i))} style={{width: '30px', height: '30px', borderRadius: '50%', background: 'var(--brand-primary)', border: 'none', color: 'white', cursor: 'pointer', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>+</button>
+                                                    <button onClick={() => setCart(prev => prev.filter(i => i.id !== item.id))} style={{width: '30px', height: '30px', borderRadius: '50%', background: '#FEE2E2', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                                                        <i className="fa-solid fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                                {cart.length > 0 && (
+                                    <div style={{padding: '15px', borderTop: '1px solid var(--border-color)'}}>
+                                        <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '15px', fontSize: '18px', fontWeight: '800'}}>
+                                            <span>{t('cartTotal')}</span>
+                                            <span style={{color: 'var(--brand-primary)'}}>{cart.reduce((s, i) => s + i.price * i.qty, 0)} TL</span>
+                                        </div>
+                                        <div style={{display: 'flex', gap: '10px'}}>
+                                            <button onClick={() => setCart([])} style={{flex: 1, background: 'white', color: '#64748B', border: '1px solid #64748B', padding: '14px', borderRadius: '24px', fontSize: '14px', fontWeight: '700', cursor: 'pointer'}}>{t('clearCart')}</button>
+                                            <button onClick={handleCheckout} style={{flex: 2, background: 'var(--brand-primary)', color: 'white', border: 'none', padding: '14px', borderRadius: '24px', fontSize: '14px', fontWeight: '700', cursor: 'pointer'}}>
+                                                <i className="fa-solid fa-check" style={{marginRight: '8px'}}></i>
+                                                {t('checkout')}
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </>
+                    )}
                 </div>
             );
         };
@@ -1609,6 +1784,61 @@
                             ))
                         )}
                     </div>
+                    {showCartModal && (
+                        <>
+                            <div style={{position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.5)', zIndex: 2000}} onClick={() => setShowCartModal(false)}></div>
+                            <div style={{position: 'fixed', bottom: 0, left: 0, width: '100%', maxHeight: '80vh', background: 'white', borderTopLeftRadius: '24px', borderTopRightRadius: '24px', zIndex: 2001, display: 'flex', flexDirection: 'column', animation: 'slideUp 0.3s ease'}}>
+                                <div style={{padding: '20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                                    <h3 style={{margin: 0, fontSize: '20px', fontWeight: '800'}}>
+                                        <i className="fa-solid fa-bag-shopping" style={{color: 'var(--brand-primary)', marginRight: '10px'}}></i>
+                                        {t('cart')}
+                                    </h3>
+                                    <i className="fa-solid fa-times" style={{fontSize: '22px', cursor: 'pointer', color: 'var(--text-muted)'}} onClick={() => setShowCartModal(false)}></i>
+                                </div>
+                                <div style={{flex: 1, overflowY: 'auto', padding: '15px'}}>
+                                    {cart.length === 0 ? (
+                                        <div style={{textAlign: 'center', color: 'var(--text-muted)', padding: '40px 0'}}>
+                                            <i className="fa-solid fa-bag-shopping" style={{fontSize: '50px', color: '#DDD', marginBottom: '15px'}}></i>
+                                            <p>{t('cartEmpty')}</p>
+                                        </div>
+                                    ) : (
+                                        cart.map(item => (
+                                            <div key={item.id} style={{display: 'flex', alignItems: 'center', gap: '15px', padding: '12px 0', borderBottom: '1px solid var(--border-color)'}}>
+                                                <img src={item.img} alt={item.name} style={{width: '60px', height: '60px', borderRadius: '10px', objectFit: 'cover'}} />
+                                                <div style={{flex: 1}}>
+                                                    <div style={{fontWeight: '700', fontSize: '15px'}}>{item.name}</div>
+                                                    <div style={{color: 'var(--brand-primary)', fontWeight: '800', fontSize: '14px'}}>{item.price} TL</div>
+                                                </div>
+                                                <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                                                    <button onClick={() => setCart(prev => prev.map(i => i.id === item.id ? {...i, qty: Math.max(1, i.qty - 1)} : i))} style={{width: '30px', height: '30px', borderRadius: '50%', border: '1px solid var(--border-color)', background: 'white', cursor: 'pointer', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>-</button>
+                                                    <span style={{fontWeight: '700', minWidth: '20px', textAlign: 'center'}}>{item.qty}</span>
+                                                    <button onClick={() => setCart(prev => prev.map(i => i.id === item.id ? {...i, qty: i.qty + 1} : i))} style={{width: '30px', height: '30px', borderRadius: '50%', background: 'var(--brand-primary)', border: 'none', color: 'white', cursor: 'pointer', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>+</button>
+                                                    <button onClick={() => setCart(prev => prev.filter(i => i.id !== item.id))} style={{width: '30px', height: '30px', borderRadius: '50%', background: '#FEE2E2', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                                                        <i className="fa-solid fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                                {cart.length > 0 && (
+                                    <div style={{padding: '15px', borderTop: '1px solid var(--border-color)'}}>
+                                        <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '15px', fontSize: '18px', fontWeight: '800'}}>
+                                            <span>{t('cartTotal')}</span>
+                                            <span style={{color: 'var(--brand-primary)'}}>{cart.reduce((s, i) => s + i.price * i.qty, 0)} TL</span>
+                                        </div>
+                                        <div style={{display: 'flex', gap: '10px'}}>
+                                            <button onClick={() => setCart([])} style={{flex: 1, background: 'white', color: '#64748B', border: '1px solid #64748B', padding: '14px', borderRadius: '24px', fontSize: '14px', fontWeight: '700', cursor: 'pointer'}}>{t('clearCart')}</button>
+                                            <button onClick={handleCheckout} style={{flex: 2, background: 'var(--brand-primary)', color: 'white', border: 'none', padding: '14px', borderRadius: '24px', fontSize: '14px', fontWeight: '700', cursor: 'pointer'}}>
+                                                <i className="fa-solid fa-check" style={{marginRight: '8px'}}></i>
+                                                {t('checkout')}
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </>
+                    )}
                 </div>
             );
         };
@@ -1638,6 +1868,61 @@
                             })
                         )}
                     </div>
+                    {showCartModal && (
+                        <>
+                            <div style={{position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.5)', zIndex: 2000}} onClick={() => setShowCartModal(false)}></div>
+                            <div style={{position: 'fixed', bottom: 0, left: 0, width: '100%', maxHeight: '80vh', background: 'white', borderTopLeftRadius: '24px', borderTopRightRadius: '24px', zIndex: 2001, display: 'flex', flexDirection: 'column', animation: 'slideUp 0.3s ease'}}>
+                                <div style={{padding: '20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                                    <h3 style={{margin: 0, fontSize: '20px', fontWeight: '800'}}>
+                                        <i className="fa-solid fa-bag-shopping" style={{color: 'var(--brand-primary)', marginRight: '10px'}}></i>
+                                        {t('cart')}
+                                    </h3>
+                                    <i className="fa-solid fa-times" style={{fontSize: '22px', cursor: 'pointer', color: 'var(--text-muted)'}} onClick={() => setShowCartModal(false)}></i>
+                                </div>
+                                <div style={{flex: 1, overflowY: 'auto', padding: '15px'}}>
+                                    {cart.length === 0 ? (
+                                        <div style={{textAlign: 'center', color: 'var(--text-muted)', padding: '40px 0'}}>
+                                            <i className="fa-solid fa-bag-shopping" style={{fontSize: '50px', color: '#DDD', marginBottom: '15px'}}></i>
+                                            <p>{t('cartEmpty')}</p>
+                                        </div>
+                                    ) : (
+                                        cart.map(item => (
+                                            <div key={item.id} style={{display: 'flex', alignItems: 'center', gap: '15px', padding: '12px 0', borderBottom: '1px solid var(--border-color)'}}>
+                                                <img src={item.img} alt={item.name} style={{width: '60px', height: '60px', borderRadius: '10px', objectFit: 'cover'}} />
+                                                <div style={{flex: 1}}>
+                                                    <div style={{fontWeight: '700', fontSize: '15px'}}>{item.name}</div>
+                                                    <div style={{color: 'var(--brand-primary)', fontWeight: '800', fontSize: '14px'}}>{item.price} TL</div>
+                                                </div>
+                                                <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                                                    <button onClick={() => setCart(prev => prev.map(i => i.id === item.id ? {...i, qty: Math.max(1, i.qty - 1)} : i))} style={{width: '30px', height: '30px', borderRadius: '50%', border: '1px solid var(--border-color)', background: 'white', cursor: 'pointer', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>-</button>
+                                                    <span style={{fontWeight: '700', minWidth: '20px', textAlign: 'center'}}>{item.qty}</span>
+                                                    <button onClick={() => setCart(prev => prev.map(i => i.id === item.id ? {...i, qty: i.qty + 1} : i))} style={{width: '30px', height: '30px', borderRadius: '50%', background: 'var(--brand-primary)', border: 'none', color: 'white', cursor: 'pointer', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>+</button>
+                                                    <button onClick={() => setCart(prev => prev.filter(i => i.id !== item.id))} style={{width: '30px', height: '30px', borderRadius: '50%', background: '#FEE2E2', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                                                        <i className="fa-solid fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                                {cart.length > 0 && (
+                                    <div style={{padding: '15px', borderTop: '1px solid var(--border-color)'}}>
+                                        <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '15px', fontSize: '18px', fontWeight: '800'}}>
+                                            <span>{t('cartTotal')}</span>
+                                            <span style={{color: 'var(--brand-primary)'}}>{cart.reduce((s, i) => s + i.price * i.qty, 0)} TL</span>
+                                        </div>
+                                        <div style={{display: 'flex', gap: '10px'}}>
+                                            <button onClick={() => setCart([])} style={{flex: 1, background: 'white', color: '#64748B', border: '1px solid #64748B', padding: '14px', borderRadius: '24px', fontSize: '14px', fontWeight: '700', cursor: 'pointer'}}>{t('clearCart')}</button>
+                                            <button onClick={handleCheckout} style={{flex: 2, background: 'var(--brand-primary)', color: 'white', border: 'none', padding: '14px', borderRadius: '24px', fontSize: '14px', fontWeight: '700', cursor: 'pointer'}}>
+                                                <i className="fa-solid fa-check" style={{marginRight: '8px'}}></i>
+                                                {t('checkout')}
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </>
+                    )}
                 </div>
             );
         };
@@ -2276,6 +2561,29 @@
             }, [cart]);
 
             const [showCartModal, setShowCartModal] = useState(false);
+            const [activeOrders, setActiveOrders] = useState([]);
+            const [qrDataOverride, setQrDataOverride] = useState(null);
+
+            const fetchActiveOrders = () => {
+                if (!currentUser) return;
+                fetch(`${API_BASE_URL}/api/active-orders/?kullanici_id=${currentUser.id}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            const newActive = data.active_orders || [];
+                            setActiveOrders(prev => {
+                                if (prev.length > 0 && newActive.length < prev.length) {
+                                    // An active order was completed or cancelled, refresh history
+                                    fetchOrders();
+                                    fetchMerchants();
+                                }
+                                return newActive;
+                            });
+                        }
+                    })
+                    .catch(err => console.error("Error fetching active orders:", err));
+            };
+
 
             const handleAddToCart = (item, merchantId) => {
                 setCart(prev => {
@@ -2368,7 +2676,12 @@
             useEffect(() => {
                 fetchMerchants();
                 fetchCoupons();
-                if (currentUser) fetchOrders();
+                if (currentUser) {
+                    fetchOrders();
+                    fetchActiveOrders();
+                    const interval = setInterval(() => fetchActiveOrders(), 10000);
+                    return () => clearInterval(interval);
+                }
             }, [currentUser]);
 
             // Handle routing resets
@@ -2488,6 +2801,57 @@
                     alert(lang === 'tr' ? 'Sipariş işlemi için bir işletme seçilmemiş.' : 'No merchant selected for checkout.');
                     return;
                 }
+
+                // Sipariş türü seçimi ve ödeme simülasyonu
+                const isGelAl = window.confirm(
+                    lang === 'tr' ? "Siparişi Uygulama Üzerinden mi Ödemek İstersiniz (Gel-Al)? \n[İptal] derseniz Kasada Ödeyeceksiniz." 
+                    : "Do you want to pay via App (Take-away)? \nClick [Cancel] to pay at the counter."
+                );
+
+                const siparisTuru = isGelAl ? 'gel_al' : 'yerinde';
+
+                if (isGelAl) {
+                    // Google Pay entegrasyonu (placeholder) - Kullanıcı isteği doğrultusunda şu an pasif
+                    /*
+                    // Google Pay API yükleme ve ödeme isteği başlatma adımları
+                    const paymentDataRequest = {
+                        apiVersion: 2,
+                        apiVersionMinor: 0,
+                        allowedPaymentMethods: [{
+                            type: 'CARD',
+                            parameters: {
+                                allowedAuthMethods: ['PAN_ONLY', 'CRYPTOGRAM_3DS'],
+                                allowedCardNetworks: ['AMEX', 'DISCOVER', 'MASTERCARD', 'VISA']
+                            },
+                            tokenizationSpecification: {
+                                type: 'PAYMENT_GATEWAY',
+                                parameters: {
+                                    gateway: 'example',
+                                    gatewayMerchantId: 'exampleGatewayMerchantId'
+                                }
+                            }
+                        }],
+                        transactionInfo: {
+                            totalPriceStatus: 'FINAL',
+                            totalPrice: total.toString(),
+                            currencyCode: 'TRY',
+                            countryCode: 'TR'
+                        },
+                        merchantInfo: {
+                            merchantName: selectedMerchant ? selectedMerchant.name : 'Mudavim Uyesi'
+                        }
+                    };
+                    // const paymentsClient = new google.payments.api.PaymentsClient({environment: 'TEST'});
+                    // paymentsClient.loadPaymentData(paymentDataRequest).then(...);
+                    */
+                    
+                    const fakeCard = window.prompt(lang === 'tr' ? "Google Pay Simülasyonu: Lütfen Kart Numaranızı Girin (Demo)" : "Google Pay Simulation: Please enter Card Number (Demo)", "1234 5678 9101 1121");
+                    if (!fakeCard) {
+                        alert(lang === 'tr' ? "Ödeme iptal edildi." : "Payment cancelled.");
+                        return;
+                    }
+                }
+
                 const total = cart.reduce((sum, i) => sum + i.price * i.qty, 0);
                 fetch(`${API_BASE_URL}/api/checkout/`, {
                     method: 'POST',
@@ -2496,7 +2860,8 @@
                         kullanici_id: currentUser.id,
                         isletme_id: merchantId,
                         items: cart.map(i => ({ id: i.id, name: i.name, qty: i.qty, price: i.price })),
-                        total: total
+                        total: total,
+                        siparis_turu: siparisTuru
                     })
                 })
                 .then(res => res.json())
@@ -2506,8 +2871,15 @@
                         setShowCartModal(false);
                         fetchMerchants();
                         fetchOrders();
-                        setCurrentTab('qr');
-                        alert(lang === 'tr' ? 'Siparişiniz alındı! QR kodunuzu kasada gösterin.' : 'Your order placed! Show your QR at checkout.');
+                        fetchActiveOrders(); // Update active orders
+                        if (siparisTuru === 'yerinde') {
+                            setCurrentTab('qr'); // Show QR for in-store order approval
+                            alert(lang === 'tr' ? `Siparişiniz alındı! Yerinde siparişi onaylamak için QR kodunuzu (MUDAVIM-SIPARIS-${data.siparis_id}) kasada gösterin.` : 'Your order placed! Show your QR at checkout.');
+                            setQrDataOverride(`MUDAVIM-SIPARIS-${data.siparis_id}`);
+                        } else {
+                            setCurrentTab('home');
+                            alert(lang === 'tr' ? 'Siparişiniz alındı ve ödemeniz tamamlandı! Ana ekrandan durumunu takip edebilirsiniz.' : 'Order placed and paid! Track it from Home screen.');
+                        }
                     } else {
                         alert((lang === 'tr' ? 'Sipariş tamamlanamadı: ' : 'Order could not be completed: ') + data.message);
                     }
@@ -2614,10 +2986,6 @@
                         onBack={() => setSelectedMerchant(null)}
                         isFavorite={favorites.includes(selectedMerchant.id)}
                         toggleFavorite={toggleFavorite}
-                        onQrClick={() => {
-                            setSelectedMerchant(null);
-                            setCurrentTab('qr');
-                        }}
                         onAddToCart={handleAddToCart}
                         onRemoveFromCart={(itemId) => setCart(prev => {
                             const existing = prev.find(i => i.id === itemId);
@@ -2628,6 +2996,11 @@
                         cart={cart}
                         lang={lang}
                         t={t}
+                        onShowCart={() => setShowCartModal(true)}
+                        showCartModal={showCartModal}
+                        setShowCartModal={setShowCartModal}
+                        setCart={setCart}
+                        handleCheckout={handleCheckout}
                     />
                 );
             }
@@ -2661,8 +3034,8 @@
                                 
                                 {/* Desktop Navigation Links */}
                                 <div className="desktop-nav" style={{marginLeft: '40px', marginRight: '40px'}}>
-                                    <span className={`desktop-nav-item ${currentTab === 'home' ? 'active' : ''}`} onClick={() => setCurrentTab('home')}>Ana Menü</span>
-                                    <span className={`desktop-nav-item ${currentTab === 'search' ? 'active' : ''}`} onClick={() => setCurrentTab('search')}>Arama & Keşfet</span>
+                                    <span className={`desktop-nav-item ${currentTab === 'home' ? 'active' : ''}`} onClick={() => { setQrDataOverride(null); setCurrentTab('home'); }}>Ana Menü</span>
+                                    <span className={`desktop-nav-item ${currentTab === 'search' ? 'active' : ''}`} onClick={() => { setQrDataOverride(null); setCurrentTab('search'); }}>Arama & Keşfet</span>
                                     <span className={`desktop-nav-item ${currentTab === 'qr' ? 'active' : ''}`} onClick={() => setCurrentTab('qr')}>QR İşlemleri</span>
                                     <span className={`desktop-nav-item ${currentTab === 'coupons' ? 'active' : ''}`} onClick={() => setCurrentTab('coupons')}>Ödüllerim</span>
                                     <span className={`desktop-nav-item ${currentTab === 'profile' ? 'active' : ''}`} onClick={() => setCurrentTab('profile')}>Hesabım</span>
@@ -2684,67 +3057,10 @@
                         </div>
                     )}
 
-                    {/* CART MODAL */}
-                    {showCartModal && (
-                        <>
-                            <div style={{position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.5)', zIndex: 2000}} onClick={() => setShowCartModal(false)}></div>
-                            <div style={{position: 'fixed', bottom: 0, left: 0, width: '100%', maxHeight: '80vh', background: 'white', borderTopLeftRadius: '24px', borderTopRightRadius: '24px', zIndex: 2001, display: 'flex', flexDirection: 'column', animation: 'slideUp 0.3s ease'}}>
-                                <div style={{padding: '20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                                    <h3 style={{margin: 0, fontSize: '20px', fontWeight: '800'}}>
-                                        <i className="fa-solid fa-bag-shopping" style={{color: 'var(--brand-primary)', marginRight: '10px'}}></i>
-                                        {t('cart')}
-                                    </h3>
-                                    <i className="fa-solid fa-times" style={{fontSize: '22px', cursor: 'pointer', color: 'var(--text-muted)'}} onClick={() => setShowCartModal(false)}></i>
-                                </div>
-                                <div style={{flex: 1, overflowY: 'auto', padding: '15px'}}>
-                                    {cart.length === 0 ? (
-                                        <div style={{textAlign: 'center', color: 'var(--text-muted)', padding: '40px 0'}}>
-                                            <i className="fa-solid fa-bag-shopping" style={{fontSize: '50px', color: '#DDD', marginBottom: '15px'}}></i>
-                                            <p>{t('cartEmpty')}</p>
-                                        </div>
-                                    ) : (
-                                        cart.map(item => (
-                                            <div key={item.id} style={{display: 'flex', alignItems: 'center', gap: '15px', padding: '12px 0', borderBottom: '1px solid var(--border-color)'}}>
-                                                <img src={item.img} alt={item.name} style={{width: '60px', height: '60px', borderRadius: '10px', objectFit: 'cover'}} />
-                                                <div style={{flex: 1}}>
-                                                    <div style={{fontWeight: '700', fontSize: '15px'}}>{item.name}</div>
-                                                    <div style={{color: 'var(--brand-primary)', fontWeight: '800', fontSize: '14px'}}>{item.price} TL</div>
-                                                </div>
-                                                <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-                                                    <button onClick={() => setCart(prev => prev.map(i => i.id === item.id ? {...i, qty: Math.max(1, i.qty - 1)} : i))} style={{width: '30px', height: '30px', borderRadius: '50%', border: '1px solid var(--border-color)', background: 'white', cursor: 'pointer', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>-</button>
-                                                    <span style={{fontWeight: '700', minWidth: '20px', textAlign: 'center'}}>{item.qty}</span>
-                                                    <button onClick={() => setCart(prev => prev.map(i => i.id === item.id ? {...i, qty: i.qty + 1} : i))} style={{width: '30px', height: '30px', borderRadius: '50%', background: 'var(--brand-primary)', border: 'none', color: 'white', cursor: 'pointer', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>+</button>
-                                                    <button onClick={() => setCart(prev => prev.filter(i => i.id !== item.id))} style={{width: '30px', height: '30px', borderRadius: '50%', background: '#FEE2E2', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-                                                        <i className="fa-solid fa-trash"></i>
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        ))
-                                    )}
-                                </div>
-                                {cart.length > 0 && (
-                                    <div style={{padding: '15px', borderTop: '1px solid var(--border-color)'}}>
-                                        <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '15px', fontSize: '18px', fontWeight: '800'}}>
-                                            <span>{t('cartTotal')}</span>
-                                            <span style={{color: 'var(--brand-primary)'}}>{cart.reduce((s, i) => s + i.price * i.qty, 0)} TL</span>
-                                        </div>
-                                        <div style={{display: 'flex', gap: '10px'}}>
-                                            <button onClick={() => setCart([])} style={{flex: 1, background: 'white', color: '#64748B', border: '1px solid #64748B', padding: '14px', borderRadius: '24px', fontSize: '14px', fontWeight: '700', cursor: 'pointer'}}>{t('clearCart')}</button>
-                                            <button onClick={handleCheckout} style={{flex: 2, background: 'var(--brand-primary)', color: 'white', border: 'none', padding: '14px', borderRadius: '24px', fontSize: '14px', fontWeight: '700', cursor: 'pointer'}}>
-                                                <i className="fa-solid fa-check" style={{marginRight: '8px'}}></i>
-                                                {t('checkout')}
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </>
-                    )}
-
-                    {currentTab === 'home' && <HomeScreen favorites={favorites} toggleFavorite={toggleFavorite} onMerchantClick={handleMerchantClick} lang={lang} t={t} />}
+                    {currentTab === 'home' && <HomeScreen favorites={favorites} toggleFavorite={toggleFavorite} onMerchantClick={handleMerchantClick} lang={lang} t={t} activeOrders={activeOrders} />}
                     {currentTab === 'search' && <SearchScreen favorites={favorites} toggleFavorite={toggleFavorite} onMerchantClick={handleMerchantClick} lang={lang} t={t} />}
                     {currentTab === 'map' && <MapScreen merchants={merchants} onMerchantClick={handleMerchantClick} />}
-                    {currentTab === 'qr' && <QRScreen addOrder={addOrder} currentUser={currentUser} cart={cart} lang={lang} t={t} />}
+                    {currentTab === 'qr' && <QRScreen addOrder={addOrder} currentUser={currentUser} cart={cart} lang={lang} t={t} qrDataOverride={qrDataOverride} />}
                     {currentTab === 'profile' && (
                         <ProfileScreen 
                             onLogout={() => {
@@ -2813,6 +3129,64 @@
                             <span>{lang === 'tr' ? 'Hesabım' : 'Profile'}</span>
                         </div>
                     </div>
+                    {/* CART MODAL */}
+                    {showCartModal && (
+                        <>
+                            <div style={{position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.5)', zIndex: 2000}} onClick={() => setShowCartModal(false)}></div>
+                            <div style={{position: 'fixed', bottom: 0, left: 0, width: '100%', maxHeight: '80vh', background: 'white', borderTopLeftRadius: '24px', borderTopRightRadius: '24px', zIndex: 2001, display: 'flex', flexDirection: 'column', animation: 'slideUp 0.3s ease'}}>
+                                <div style={{padding: '20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                                    <h3 style={{margin: 0, fontSize: '20px', fontWeight: '800'}}>
+                                        <i className="fa-solid fa-bag-shopping" style={{color: 'var(--brand-primary)', marginRight: '10px'}}></i>
+                                        {t('cart')}
+                                    </h3>
+                                    <i className="fa-solid fa-times" style={{fontSize: '22px', cursor: 'pointer', color: 'var(--text-muted)'}} onClick={() => setShowCartModal(false)}></i>
+                                </div>
+                                <div style={{flex: 1, overflowY: 'auto', padding: '15px'}}>
+                                    {cart.length === 0 ? (
+                                        <div style={{textAlign: 'center', color: 'var(--text-muted)', padding: '40px 0'}}>
+                                            <i className="fa-solid fa-bag-shopping" style={{fontSize: '50px', color: '#DDD', marginBottom: '15px'}}></i>
+                                            <p>{t('cartEmpty')}</p>
+                                        </div>
+                                    ) : (
+                                        cart.map(item => (
+                                            <div key={item.id} style={{display: 'flex', alignItems: 'center', gap: '15px', padding: '12px 0', borderBottom: '1px solid var(--border-color)'}}>
+                                                <img src={item.img} alt={item.name} style={{width: '60px', height: '60px', borderRadius: '10px', objectFit: 'cover'}} />
+                                                <div style={{flex: 1}}>
+                                                    <div style={{fontWeight: '700', fontSize: '15px'}}>{item.name}</div>
+                                                    <div style={{color: 'var(--brand-primary)', fontWeight: '800', fontSize: '14px'}}>{item.price} TL</div>
+                                                </div>
+                                                <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                                                    <button onClick={() => setCart(prev => prev.map(i => i.id === item.id ? {...i, qty: Math.max(1, i.qty - 1)} : i))} style={{width: '30px', height: '30px', borderRadius: '50%', border: '1px solid var(--border-color)', background: 'white', cursor: 'pointer', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>-</button>
+                                                    <span style={{fontWeight: '700', minWidth: '20px', textAlign: 'center'}}>{item.qty}</span>
+                                                    <button onClick={() => setCart(prev => prev.map(i => i.id === item.id ? {...i, qty: i.qty + 1} : i))} style={{width: '30px', height: '30px', borderRadius: '50%', background: 'var(--brand-primary)', border: 'none', color: 'white', cursor: 'pointer', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>+</button>
+                                                    <button onClick={() => setCart(prev => prev.filter(i => i.id !== item.id))} style={{width: '30px', height: '30px', borderRadius: '50%', background: '#FEE2E2', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                                                        <i className="fa-solid fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                                {cart.length > 0 && (
+                                    <div style={{padding: '15px', borderTop: '1px solid var(--border-color)'}}>
+                                        <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '15px', fontSize: '18px', fontWeight: '800'}}>
+                                            <span>{t('cartTotal')}</span>
+                                            <span style={{color: 'var(--brand-primary)'}}>{cart.reduce((s, i) => s + i.price * i.qty, 0)} TL</span>
+                                        </div>
+                                        <div style={{display: 'flex', gap: '10px'}}>
+                                            <button onClick={() => setCart([])} style={{flex: 1, background: 'white', color: '#64748B', border: '1px solid #64748B', padding: '14px', borderRadius: '24px', fontSize: '14px', fontWeight: '700', cursor: 'pointer'}}>{t('clearCart')}</button>
+                                            <button onClick={handleCheckout} style={{flex: 2, background: 'var(--brand-primary)', color: 'white', border: 'none', padding: '14px', borderRadius: '24px', fontSize: '14px', fontWeight: '700', cursor: 'pointer'}}>
+                                                <i className="fa-solid fa-check" style={{marginRight: '8px'}}></i>
+                                                {t('checkout')}
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </>
+                    )}
+
+
                 </>
             );
         };
