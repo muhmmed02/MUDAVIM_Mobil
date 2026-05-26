@@ -1,0 +1,22 @@
+# Geliştirme sırasında oluşan geçici dosyalar
+fix*.js
+fix*.py
+*_broken.*
+patch*.py
+test_*.py
+
+# Yerel config (her cihazda farklı olabilir)
+api-config.js
+
+# Tarayıcı veritabanı
+prompt.db
+*.db
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
