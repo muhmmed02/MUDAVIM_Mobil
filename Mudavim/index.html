@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
@@ -529,6 +529,25 @@
         };
 
         const MerchantDetailScreen = ({ merchant, onBack, isFavorite, toggleFavorite, onShowCart, onAddToCart, onRemoveFromCart, cart, lang, t, showCartModal, setShowCartModal, setCart, handleCheckout }) => {
+            const [merchantMenu, setMerchantMenu] = React.useState([]);
+            const [menuLoading, setMenuLoading] = React.useState(true);
+
+            React.useEffect(() => {
+                if (!merchant || !merchant.id) return;
+                setMenuLoading(true);
+                fetch(`${API_BASE_URL}/api/merchants/${merchant.id}/menu/`)
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            setMerchantMenu(data.menu);
+                        } else {
+                            setMerchantMenu([]);
+                        }
+                    })
+                    .catch(() => setMerchantMenu([]))
+                    .finally(() => setMenuLoading(false));
+            }, [merchant && merchant.id]);
+
             return (
                 <div style={{background: '#f8f9fa', minHeight: '100vh', paddingBottom: '100px'}}>
                     <div style={{position: 'relative', height: '280px', width: '100%'}}>
@@ -604,7 +623,12 @@
                         </h3>
                         
                         <div style={{display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '30px'}}>
-                            {getMerchantMenu(merchant, lang).map(item => (
+                            {menuLoading ? (
+                                <div style={{textAlign: 'center', padding: '30px', color: 'var(--text-muted)'}}>⏳ {lang === 'tr' ? 'Menü yükleniyor...' : 'Loading menu...'}</div>
+                            ) : merchantMenu.length === 0 ? (
+                                <div style={{textAlign: 'center', padding: '30px', color: 'var(--text-muted)', fontSize: '14px'}}>🍽️ {lang === 'tr' ? 'Henüz ürün eklenmemiş.' : 'No products added yet.'}</div>
+                            ) : null}
+                            {merchantMenu.map(item => (
                                 <div key={item.id} style={{display: 'flex', gap: '15px', padding: '15px', border: '1px solid var(--border-color)', borderRadius: '16px', background: 'white', alignItems: 'center', boxShadow: '0 2px 5px rgba(0,0,0,0.02)'}}>
                                     <img src={item.img} alt={item.name} style={{width: '70px', height: '70px', borderRadius: '12px', objectFit: 'cover'}} />
                                     <div style={{flex: 1}}>
