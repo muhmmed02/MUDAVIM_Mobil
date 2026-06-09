@@ -528,7 +528,7 @@
             );
         };
 
-        const MerchantDetailScreen = ({ merchant, onBack, isFavorite, toggleFavorite, onShowCart, onAddToCart, onRemoveFromCart, cart, lang, t, showCartModal, setShowCartModal, setCart, handleCheckout }) => {
+        const MerchantDetailScreen = ({ merchant, onBack, isFavorite, toggleFavorite, onShowCart, onAddToCart, onRemoveFromCart, cart, lang, t, showCartModal, setShowCartModal, setCart, handleCheckout, handleUseFreeReward }) => {
             const [merchantMenu, setMerchantMenu] = React.useState([]);
             const [menuLoading, setMenuLoading] = React.useState(true);
 
@@ -604,8 +604,34 @@
                             </div>
                             
                             {merchant.currentStamps >= merchant.maxStamps ? (
-                                <div style={{marginTop: '20px', padding: '15px', background: 'var(--brand-primary)', color: 'white', borderRadius: '12px', textAlign: 'center', fontWeight: 'bold', fontSize: '15px'}}>
-                                    {lang === 'tr' ? 'Tebrikler! Ödülünüz hazır. Kasada QR okutarak kullanabilirsiniz.' : 'Congratulations! Your reward is ready. You can scan QR at checkout to redeem.'}
+                                <div style={{marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '10px'}}>
+                                    <div style={{padding: '15px', background: 'var(--brand-primary)', color: 'white', borderRadius: '12px', textAlign: 'center', fontWeight: 'bold', fontSize: '15px'}}>
+                                        {lang === 'tr' ? 'Tebrikler! Ödülünüz hazır.' : 'Congratulations! Your reward is ready.'}
+                                    </div>
+                                    <button 
+                                        onClick={() => handleUseFreeReward(merchant.id)}
+                                        style={{
+                                            background: 'var(--brand-secondary)',
+                                            color: 'white',
+                                            border: 'none',
+                                            padding: '14px',
+                                            borderRadius: '12px',
+                                            fontSize: '15px',
+                                            fontWeight: '800',
+                                            cursor: 'pointer',
+                                            boxShadow: '0 4px 12px rgba(255, 102, 51, 0.2)',
+                                            transition: 'transform 0.2s',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            gap: '8px'
+                                        }}
+                                        onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+                                        onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                                    >
+                                        <i className="fa-solid fa-gift"></i>
+                                        {lang === 'tr' ? 'Bedava Ürün Hakkını Kullan' : 'Redeem Free Reward'}
+                                    </button>
                                 </div>
                             ) : (
                                 <p style={{marginTop: '15px', fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center', margin: '15px 0 0 0'}}>
@@ -2860,6 +2886,44 @@
                 });
             };
 
+            const handleUseFreeReward = (isletmeId) => {
+                if (!currentUser) return;
+                const confirmRedeem = window.confirm(
+                    lang === 'tr' ? "Bedava ürün hakkınızı kullanmak istediğinizden emin misiniz? Bu işlem damgalarınızı sıfırlayacaktır."
+                    : "Are you sure you want to redeem your free reward? This will consume your stamps."
+                );
+                if (!confirmRedeem) return;
+
+                fetch(`${API_BASE_URL}/api/use-free-reward/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        kullanici_id: currentUser.id,
+                        isletme_id: isletmeId
+                    })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        alert(lang === 'tr' ? "Tebrikler! Bedava ürün hakkınız başarıyla kullanıldı." : "Congratulations! Your free reward has been successfully redeemed.");
+                        fetchMerchants(); // Refresh merchant lists (which refreshes stamps)
+                        // Also update the selectedMerchant if it is currently open
+                        setSelectedMerchant(prev => {
+                            if (prev && prev.id === isletmeId) {
+                                return { ...prev, currentStamps: data.currentStamps };
+                            }
+                            return prev;
+                        });
+                    } else {
+                        alert((lang === 'tr' ? "Hata: " : "Error: ") + data.message);
+                    }
+                })
+                .catch(err => {
+                    console.error("Error redeeming free reward:", err);
+                    alert(lang === 'tr' ? "Sunucu bağlantı hatası." : "Server connection error.");
+                });
+            };
+
             const executeCheckout = (siparisTuru) => {
                 const merchantId = cart[0]?.merchantId || (selectedMerchant ? selectedMerchant.id : null);
                 const total = cart.reduce((sum, i) => sum + i.price * i.qty, 0);
@@ -3068,6 +3132,7 @@
                         setShowCartModal={setShowCartModal}
                         setCart={setCart}
                         handleCheckout={handleCheckout}
+                        handleUseFreeReward={handleUseFreeReward}
                     />
                 );
             }
