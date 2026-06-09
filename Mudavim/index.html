@@ -3016,10 +3016,12 @@
                         fetchOrders();
                         fetchActiveOrders(); // Update active orders
                         if (siparisTuru === 'yerinde') {
-                            setCurrentTab('qr'); // Show QR for in-store order approval
-                            alert(lang === 'tr' ? `Siparişiniz alındı! Yerinde siparişi onaylamak için QR kodunuzu (MUDAVIM-SIPARIS-${data.siparis_id}) kasada gösterin.` : 'Your order placed! Show your QR at checkout.');
+                            setSelectedMerchant(null); // Close merchant detail page so user can see main tabs
+                            setCurrentTab('qr'); // Redirect directly to QR page
                             setQrDataOverride(`MUDAVIM-SIPARIS-${data.siparis_id}`);
+                            alert(lang === 'tr' ? `Siparişiniz alındı! Yerinde siparişi onaylamak için QR kodunuzu kasada gösterin.` : 'Your order has been placed! Show your QR code at the checkout.');
                         } else {
+                            setSelectedMerchant(null); // Close merchant detail page
                             setCurrentTab('home');
                             alert(lang === 'tr' ? 'Siparişiniz alındı ve ödemeniz tamamlandı! Ana ekrandan durumunu takip edebilirsiniz.' : 'Order placed and paid! Track it from Home screen.');
                         }
