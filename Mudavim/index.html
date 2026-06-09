@@ -3109,36 +3109,33 @@
                 );
             }
 
-            // Render Merchant Detail Page if selected
-            if (selectedMerchant) {
-                return (
-                    <MerchantDetailScreen 
-                        merchant={selectedMerchant}
-                        onBack={() => setSelectedMerchant(null)}
-                        isFavorite={favorites.includes(selectedMerchant.id)}
-                        toggleFavorite={toggleFavorite}
-                        onAddToCart={handleAddToCart}
-                        onRemoveFromCart={(itemId) => setCart(prev => {
-                            const existing = prev.find(i => i.id === itemId);
-                            if (!existing) return prev;
-                            if (existing.qty <= 1) return prev.filter(i => i.id !== itemId);
-                            return prev.map(i => i.id === itemId ? {...i, qty: i.qty - 1} : i);
-                        })}
-                        cart={cart}
-                        lang={lang}
-                        t={t}
-                        onShowCart={() => setShowCartModal(true)}
-                        showCartModal={showCartModal}
-                        setShowCartModal={setShowCartModal}
-                        setCart={setCart}
-                        handleCheckout={handleCheckout}
-                        handleUseFreeReward={handleUseFreeReward}
-                    />
-                );
-            }
-
             return (
                 <>
+                    {selectedMerchant ? (
+                        <MerchantDetailScreen 
+                            merchant={selectedMerchant}
+                            onBack={() => setSelectedMerchant(null)}
+                            isFavorite={favorites.includes(selectedMerchant.id)}
+                            toggleFavorite={toggleFavorite}
+                            onAddToCart={handleAddToCart}
+                            onRemoveFromCart={(itemId) => setCart(prev => {
+                                const existing = prev.find(i => i.id === itemId);
+                                if (!existing) return prev;
+                                if (existing.qty <= 1) return prev.filter(i => i.id !== itemId);
+                                return prev.map(i => i.id === itemId ? {...i, qty: i.qty - 1} : i);
+                            })}
+                            cart={cart}
+                            lang={lang}
+                            t={t}
+                            onShowCart={() => setShowCartModal(true)}
+                            showCartModal={showCartModal}
+                            setShowCartModal={setShowCartModal}
+                            setCart={setCart}
+                            handleCheckout={handleCheckout}
+                            handleUseFreeReward={handleUseFreeReward}
+                        />
+                    ) : (
+                        <>
                     {/* TOP HEADER (Responsive) */}
                     {currentTab === 'profile' ? (
                         <div className="app-header" style={{display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative'}}>
@@ -3316,6 +3313,8 @@
                                 )}
                             </div>
                         </>
+                    )}
+                    </>
                     )}
 
                     {/* CHECKOUT TYPE SELECTION MODAL */}
