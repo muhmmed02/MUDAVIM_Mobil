@@ -2588,6 +2588,47 @@
             const [activeOrders, setActiveOrders] = useState([]);
             const [qrDataOverride, setQrDataOverride] = useState(null);
 
+            // --- iyzico Payment Simulation States ---
+            const [showIyzicoModal, setShowIyzicoModal] = useState(false);
+            const [iyzicoCardName, setIyzicoCardName] = useState('');
+            const [iyzicoCardNumber, setIyzicoCardNumber] = useState('');
+            const [iyzicoExpiry, setIyzicoExpiry] = useState('');
+            const [iyzicoCvv, setIyzicoCvv] = useState('');
+            const [iyzicoLoading, setIyzicoLoading] = useState(false);
+            const [iyzicoSuccess, setIyzicoSuccess] = useState(false);
+            const [iyzicoError, setIyzicoError] = useState('');
+            const [iyzicoCardType, setIyzicoCardType] = useState('unknown'); // visa, mastercard, troy, unknown
+
+            const handleCardNumberChange = (e) => {
+                let value = e.target.value.replace(/\D/g, '');
+                if (value.length > 16) value = value.substring(0, 16);
+                
+                // Detect card type
+                if (value.startsWith('4')) setIyzicoCardType('visa');
+                else if (/^5[1-5]/.test(value) || /^2[2-7]/.test(value)) setIyzicoCardType('mastercard');
+                else if (value.startsWith('9792')) setIyzicoCardType('troy');
+                else setIyzicoCardType('unknown');
+
+                let formatted = value.match(/.{1,4}/g)?.join(' ') || value;
+                setIyzicoCardNumber(formatted);
+            };
+
+            const handleExpiryChange = (e) => {
+                let value = e.target.value.replace(/\D/g, '');
+                if (value.length > 4) value = value.substring(0, 4);
+                let formatted = value;
+                if (value.length > 2) {
+                    formatted = value.substring(0, 2) + '/' + value.substring(2);
+                }
+                setIyzicoExpiry(formatted);
+            };
+
+            const handleCvvChange = (e) => {
+                let value = e.target.value.replace(/\D/g, '');
+                if (value.length > 3) value = value.substring(0, 3);
+                setIyzicoCvv(value);
+            };
+
             const fetchActiveOrders = () => {
                 if (!currentUser) return;
                 fetch(`${API_BASE_URL}/api/active-orders/?kullanici_id=${currentUser.id}`)
@@ -2818,64 +2859,8 @@
                 });
             };
 
-            const handleCheckout = () => {
-                if (!currentUser || cart.length === 0) return;
+            const executeCheckout = (siparisTuru) => {
                 const merchantId = cart[0]?.merchantId || (selectedMerchant ? selectedMerchant.id : null);
-                if (!merchantId) {
-                    alert(lang === 'tr' ? 'Sipariş işlemi için bir işletme seçilmemiş.' : 'No merchant selected for checkout.');
-                    return;
-                }
-
-                // Sipariş türü seçimi ve ödeme simülasyonu
-                const isGelAl = window.confirm(
-                    lang === 'tr' ? "Siparişi Uygulama Üzerinden mi Ödemek İstersiniz (Gel-Al)? \n[İptal] derseniz Kasada Ödeyeceksiniz." 
-                    : "Do you want to pay via App (Take-away)? \nClick [Cancel] to pay at the counter."
-                );
-
-                const siparisTuru = isGelAl ? 'gel_al' : 'yerinde';
-
-                if (isGelAl) {
-                    // Google Pay entegrasyonu (placeholder) - Kullanıcı isteği doğrultusunda şu an pasif
-                    /*
-                    // Google Pay API yükleme ve ödeme isteği başlatma adımları
-                    const paymentDataRequest = {
-                        apiVersion: 2,
-                        apiVersionMinor: 0,
-                        allowedPaymentMethods: [{
-                            type: 'CARD',
-                            parameters: {
-                                allowedAuthMethods: ['PAN_ONLY', 'CRYPTOGRAM_3DS'],
-                                allowedCardNetworks: ['AMEX', 'DISCOVER', 'MASTERCARD', 'VISA']
-                            },
-                            tokenizationSpecification: {
-                                type: 'PAYMENT_GATEWAY',
-                                parameters: {
-                                    gateway: 'example',
-                                    gatewayMerchantId: 'exampleGatewayMerchantId'
-                                }
-                            }
-                        }],
-                        transactionInfo: {
-                            totalPriceStatus: 'FINAL',
-                            totalPrice: total.toString(),
-                            currencyCode: 'TRY',
-                            countryCode: 'TR'
-                        },
-                        merchantInfo: {
-                            merchantName: selectedMerchant ? selectedMerchant.name : 'Mudavim Uyesi'
-                        }
-                    };
-                    // const paymentsClient = new google.payments.api.PaymentsClient({environment: 'TEST'});
-                    // paymentsClient.loadPaymentData(paymentDataRequest).then(...);
-                    */
-                    
-                    const fakeCard = window.prompt(lang === 'tr' ? "Google Pay Simülasyonu: Lütfen Kart Numaranızı Girin (Demo)" : "Google Pay Simulation: Please enter Card Number (Demo)", "1234 5678 9101 1121");
-                    if (!fakeCard) {
-                        alert(lang === 'tr' ? "Ödeme iptal edildi." : "Payment cancelled.");
-                        return;
-                    }
-                }
-
                 const total = cart.reduce((sum, i) => sum + i.price * i.qty, 0);
                 fetch(`${API_BASE_URL}/api/checkout/`, {
                     method: 'POST',
@@ -2912,6 +2897,81 @@
                     console.error('Checkout error:', err);
                     alert(lang === 'tr' ? 'Sunucu bağlantı hatası.' : 'Server connection error.');
                 });
+            };
+
+            const handleIyzicoSubmit = () => {
+                if (!iyzicoCardName.trim()) {
+                    setIyzicoError(lang === 'tr' ? 'Lütfen kart sahibinin adını girin.' : 'Please enter cardholder name.');
+                    return;
+                }
+                const cleanCard = iyzicoCardNumber.replace(/\s/g, '');
+                if (cleanCard.length !== 16) {
+                    setIyzicoError(lang === 'tr' ? 'Lütfen 16 haneli kart numaranızı girin.' : 'Please enter 16-digit card number.');
+                    return;
+                }
+                if (!/^\d{2}\/\d{2}$/.test(iyzicoExpiry)) {
+                    setIyzicoError(lang === 'tr' ? 'Son kullanma tarihini AA/YY formatında girin.' : 'Please enter expiry date as MM/YY.');
+                    return;
+                }
+                const [m, y] = iyzicoExpiry.split('/');
+                const month = parseInt(m, 10);
+                if (month < 1 || month > 12) {
+                    setIyzicoError(lang === 'tr' ? 'Geçersiz ay değeri.' : 'Invalid month.');
+                    return;
+                }
+                if (iyzicoCvv.length !== 3) {
+                    setIyzicoError(lang === 'tr' ? 'CVV 3 haneli olmalıdır.' : 'CVV must be 3 digits.');
+                    return;
+                }
+
+                // Validation succeeds
+                setIyzicoError('');
+                setIyzicoLoading(true);
+
+                // Simulate processing
+                setTimeout(() => {
+                    setIyzicoLoading(false);
+                    setIyzicoSuccess(true);
+                    
+                    // After success animation, close modal and call API
+                    setTimeout(() => {
+                        setShowIyzicoModal(false);
+                        setIyzicoSuccess(false);
+                        
+                        // Proceed to actual checkout
+                        executeCheckout('gel_al');
+                    }, 1000);
+                }, 2000);
+            };
+
+            const handleCheckout = () => {
+                if (!currentUser || cart.length === 0) return;
+                const merchantId = cart[0]?.merchantId || (selectedMerchant ? selectedMerchant.id : null);
+                if (!merchantId) {
+                    alert(lang === 'tr' ? 'Sipariş işlemi için bir işletme seçilmemiş.' : 'No merchant selected for checkout.');
+                    return;
+                }
+
+                // Sipariş türü seçimi ve ödeme simülasyonu
+                const isGelAl = window.confirm(
+                    lang === 'tr' ? "Siparişi Uygulama Üzerinden mi Ödemek İstersiniz (Gel-Al)? \n[İptal] derseniz Kasada Ödeyeceksiniz." 
+                    : "Do you want to pay via App (Take-away)? \nClick [Cancel] to pay at the counter."
+                );
+
+                if (isGelAl) {
+                    // Open iyzico modal instead of window.prompt
+                    setIyzicoCardName('');
+                    setIyzicoCardNumber('');
+                    setIyzicoExpiry('');
+                    setIyzicoCvv('');
+                    setIyzicoError('');
+                    setIyzicoCardType('unknown');
+                    setIyzicoLoading(false);
+                    setIyzicoSuccess(false);
+                    setShowIyzicoModal(true);
+                } else {
+                    executeCheckout('yerinde');
+                }
             };
 
             const handleLogin = (email, name, phone, username, password) => {
@@ -3210,7 +3270,276 @@
                         </>
                     )}
 
+                    {/* IYZICO PAYMENT MODAL */}
+                    {showIyzicoModal && (
+                        <>
+                            <div style={{
+                                position: 'fixed', 
+                                top: 0, 
+                                left: 0, 
+                                width: '100%', 
+                                height: '100%', 
+                                background: 'rgba(15, 23, 42, 0.65)', 
+                                backdropFilter: 'blur(8px)',
+                                zIndex: 3000
+                            }} onClick={() => {!iyzicoLoading && setShowIyzicoModal(false)}}></div>
+                            
+                            <div style={{
+                                position: 'fixed', 
+                                top: '50%', 
+                                left: '50%', 
+                                transform: 'translate(-50%, -50%)', 
+                                width: '92%', 
+                                maxWidth: '440px', 
+                                background: '#FFFFFF', 
+                                borderRadius: '24px', 
+                                zIndex: 3001, 
+                                display: 'flex', 
+                                flexDirection: 'column', 
+                                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                                overflow: 'hidden',
+                                animation: 'slideUp 0.3s ease',
+                                fontFamily: "'Inter', sans-serif"
+                            }}>
+                                {/* Header */}
+                                <div style={{
+                                    background: '#16397e', 
+                                    padding: '20px', 
+                                    color: 'white', 
+                                    display: 'flex', 
+                                    justifyContent: 'space-between', 
+                                    alignItems: 'center',
+                                    borderBottom: '4px solid #f23c4a'
+                                }}>
+                                    <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                                        <span style={{fontFamily: "'Outfit', sans-serif", fontWeight: '900', fontSize: '24px', letterSpacing: '-0.5px'}}>iyzi</span>
+                                        <span style={{fontFamily: "'Outfit', sans-serif", fontWeight: '900', fontSize: '24px', color: '#f23c4a', letterSpacing: '-0.5px'}}>co</span>
+                                        <span style={{fontSize: '12px', opacity: 0.8, marginLeft: '10px', background: 'rgba(255,255,255,0.15)', padding: '3px 8px', borderRadius: '12px', fontWeight: '600'}}>Korumalı Ödeme</span>
+                                    </div>
+                                    {!iyzicoLoading && (
+                                        <i className="fa-solid fa-times" style={{fontSize: '20px', cursor: 'pointer', color: 'rgba(255,255,255,0.8)'}} onClick={() => setShowIyzicoModal(false)}></i>
+                                    )}
+                                </div>
 
+                                {/* Body */}
+                                <div style={{padding: '20px', display: 'flex', flexDirection: 'column', gap: '15px'}}>
+                                    {/* Order Total */}
+                                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: '#F8FAFC', borderRadius: '16px', border: '1px solid #E2E8F0'}}>
+                                        <span style={{fontSize: '14px', color: '#64748B', fontWeight: '600'}}>{lang === 'tr' ? 'Ödenecek Tutar:' : 'Amount to Pay:'}</span>
+                                        <span style={{fontSize: '20px', fontWeight: '800', color: '#16397e'}}>{cart.reduce((s, i) => s + i.price * i.qty, 0)} TL</span>
+                                    </div>
+
+                                    {/* Card Preview */}
+                                    <div style={{
+                                        height: '160px',
+                                        background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+                                        borderRadius: '16px',
+                                        padding: '20px',
+                                        color: 'white',
+                                        position: 'relative',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        justifyContent: 'space-between',
+                                        boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)',
+                                        overflow: 'hidden'
+                                    }}>
+                                        {/* Card background shape */}
+                                        <div style={{position: 'absolute', right: '-40px', bottom: '-40px', width: '150px', height: '150px', borderRadius: '50%', background: 'rgba(255,255,255,0.03)'}}></div>
+                                        
+                                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                                            {/* Card Chip */}
+                                            <div style={{width: '38px', height: '28px', background: 'linear-gradient(135deg, #fbbf24, #f59e0b)', borderRadius: '6px', position: 'relative', overflow: 'hidden'}}>
+                                                <div style={{position: 'absolute', top: 0, left: '25%', width: '2px', height: '100%', background: 'rgba(0,0,0,0.15)'}}></div>
+                                                <div style={{position: 'absolute', top: 0, left: '50%', width: '2px', height: '100%', background: 'rgba(0,0,0,0.15)'}}></div>
+                                                <div style={{position: 'absolute', top: 0, left: '75%', width: '2px', height: '100%', background: 'rgba(0,0,0,0.15)'}}></div>
+                                                <div style={{position: 'absolute', top: '35%', left: 0, width: '100%', height: '2px', background: 'rgba(0,0,0,0.15)'}}></div>
+                                                <div style={{position: 'absolute', top: '70%', left: 0, width: '100%', height: '2px', background: 'rgba(0,0,0,0.15)'}}></div>
+                                            </div>
+
+                                            {/* Card Brand */}
+                                            <div>
+                                                {iyzicoCardType === 'visa' && <i className="fa-brands fa-cc-visa" style={{fontSize: '38px', color: '#FFF'}}></i>}
+                                                {iyzicoCardType === 'mastercard' && <i className="fa-brands fa-cc-mastercard" style={{fontSize: '38px', color: '#FFF'}}></i>}
+                                                {iyzicoCardType === 'troy' && <span style={{fontWeight: '900', fontSize: '18px', background: 'white', color: '#16397e', padding: '3px 8px', borderRadius: '6px'}}>TROY</span>}
+                                                {iyzicoCardType === 'unknown' && <i className="fa-solid fa-credit-card" style={{fontSize: '28px', opacity: 0.5}}></i>}
+                                            </div>
+                                        </div>
+
+                                        {/* Card Number */}
+                                        <div style={{fontSize: '18px', fontWeight: '600', letterSpacing: '2px', fontFamily: "monospace", padding: '10px 0'}}>
+                                            {iyzicoCardNumber || '•••• •••• •••• ••••'}
+                                        </div>
+
+                                        {/* Cardholder & Expiration */}
+                                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                                            <div>
+                                                <div style={{fontSize: '9px', textTransform: 'uppercase', opacity: 0.6, letterSpacing: '0.5px'}}>{lang === 'tr' ? 'Kart Sahibi' : 'Card Holder'}</div>
+                                                <div style={{fontSize: '13px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px'}}>{iyzicoCardName || 'AD SOYAD'}</div>
+                                            </div>
+                                            <div style={{textAlign: 'right'}}>
+                                                <div style={{fontSize: '9px', textTransform: 'uppercase', opacity: 0.6, letterSpacing: '0.5px'}}>SKT</div>
+                                                <div style={{fontSize: '13px', fontWeight: '500', fontFamily: 'monospace'}}>{iyzicoExpiry || 'AA/YY'}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Form Fields */}
+                                    <div style={{display: 'flex', flexDirection: 'column', gap: '12px'}}>
+                                        {/* Cardholder Name Input */}
+                                        <div style={{display: 'flex', flexDirection: 'column', gap: '4px'}}>
+                                            <label style={{fontSize: '12px', fontWeight: '700', color: '#475569'}}>{lang === 'tr' ? 'Kart Üzerindeki İsim' : 'Cardholder Name'}</label>
+                                            <input 
+                                                type="text"
+                                                value={iyzicoCardName}
+                                                onChange={(e) => setIyzicoCardName(e.target.value)}
+                                                disabled={iyzicoLoading}
+                                                placeholder="AHMET YILMAZ"
+                                                style={{
+                                                    padding: '10px 14px',
+                                                    borderRadius: '10px',
+                                                    border: '1px solid #CBD5E1',
+                                                    fontSize: '14px',
+                                                    outline: 'none',
+                                                    textTransform: 'uppercase'
+                                                }}
+                                            />
+                                        </div>
+
+                                        {/* Card Number Input */}
+                                        <div style={{display: 'flex', flexDirection: 'column', gap: '4px'}}>
+                                            <label style={{fontSize: '12px', fontWeight: '700', color: '#475569'}}>{lang === 'tr' ? 'Kart Numarası' : 'Card Number'}</label>
+                                            <div style={{position: 'relative'}}>
+                                                <input 
+                                                    type="text"
+                                                    value={iyzicoCardNumber}
+                                                    onChange={handleCardNumberChange}
+                                                    disabled={iyzicoLoading}
+                                                    placeholder="0000 0000 0000 0000"
+                                                    style={{
+                                                        padding: '10px 14px',
+                                                        paddingRight: '40px',
+                                                        borderRadius: '10px',
+                                                        border: '1px solid #CBD5E1',
+                                                        fontSize: '14px',
+                                                        outline: 'none',
+                                                        width: '100%'
+                                                    }}
+                                                />
+                                                <div style={{position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', opacity: 0.6}}>
+                                                    {iyzicoCardType === 'visa' && <i className="fa-brands fa-cc-visa" style={{fontSize: '22px', color: '#1A1F71'}}></i>}
+                                                    {iyzicoCardType === 'mastercard' && <i className="fa-brands fa-cc-mastercard" style={{fontSize: '22px', color: '#EB001B'}}></i>}
+                                                    {iyzicoCardType === 'troy' && <span style={{fontWeight: '800', fontSize: '11px', color: '#16397e', border: '1px solid #16397e', padding: '1px 3px', borderRadius: '3px'}}>TROY</span>}
+                                                    {iyzicoCardType === 'unknown' && <i className="fa-solid fa-credit-card" style={{fontSize: '18px'}}></i>}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Expiry & CVV Row */}
+                                        <div style={{display: 'flex', gap: '15px'}}>
+                                            <div style={{display: 'flex', flexDirection: 'column', gap: '4px', flex: 1}}>
+                                                <label style={{fontSize: '12px', fontWeight: '700', color: '#475569'}}>{lang === 'tr' ? 'Son Kullanma' : 'Expiry Date'}</label>
+                                                <input 
+                                                    type="text"
+                                                    value={iyzicoExpiry}
+                                                    onChange={handleExpiryChange}
+                                                    disabled={iyzicoLoading}
+                                                    placeholder="AA/YY"
+                                                    style={{
+                                                        padding: '10px 14px',
+                                                        borderRadius: '10px',
+                                                        border: '1px solid #CBD5E1',
+                                                        fontSize: '14px',
+                                                        outline: 'none',
+                                                        textAlign: 'center'
+                                                    }}
+                                                />
+                                            </div>
+                                            <div style={{display: 'flex', flexDirection: 'column', gap: '4px', flex: 1}}>
+                                                <label style={{fontSize: '12px', fontWeight: '700', color: '#475569'}}>CVV</label>
+                                                <input 
+                                                    type="password"
+                                                    value={iyzicoCvv}
+                                                    onChange={handleCvvChange}
+                                                    disabled={iyzicoLoading}
+                                                    placeholder="•••"
+                                                    style={{
+                                                        padding: '10px 14px',
+                                                        borderRadius: '10px',
+                                                        border: '1px solid #CBD5E1',
+                                                        fontSize: '14px',
+                                                        outline: 'none',
+                                                        textAlign: 'center'
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Error Display */}
+                                    {iyzicoError && (
+                                        <div style={{
+                                            padding: '10px 14px', 
+                                            background: '#FEF2F2', 
+                                            borderLeft: '4px solid #EF4444', 
+                                            borderRadius: '8px',
+                                            fontSize: '13px', 
+                                            color: '#991B1B',
+                                            fontWeight: '600'
+                                        }}>
+                                            <i className="fa-solid fa-triangle-exclamation" style={{marginRight: '8px'}}></i>
+                                            {iyzicoError}
+                                        </div>
+                                    )}
+
+                                    {/* Submit Button & Security Logo */}
+                                    <div style={{display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '5px'}}>
+                                        <button 
+                                            onClick={handleIyzicoSubmit}
+                                            disabled={iyzicoLoading}
+                                            style={{
+                                                background: iyzicoSuccess ? '#10B981' : '#16397e',
+                                                color: 'white',
+                                                border: 'none',
+                                                padding: '14px',
+                                                borderRadius: '14px',
+                                                fontSize: '15px',
+                                                fontWeight: '800',
+                                                cursor: iyzicoLoading ? 'not-allowed' : 'pointer',
+                                                transition: 'all 0.3s ease',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                gap: '10px',
+                                                boxShadow: iyzicoSuccess ? '0 4px 12px rgba(16, 185, 129, 0.2)' : '0 4px 12px rgba(22, 57, 126, 0.2)'
+                                            }}
+                                        >
+                                            {iyzicoLoading ? (
+                                                <>
+                                                    <i className="fa-solid fa-spinner fa-spin"></i>
+                                                    {lang === 'tr' ? 'Güvenli Ödeme Yapılıyor...' : 'Processing Secure Payment...'}
+                                                </>
+                                            ) : iyzicoSuccess ? (
+                                                <>
+                                                    <i className="fa-solid fa-circle-check"></i>
+                                                    {lang === 'tr' ? 'Ödeme Başarılı!' : 'Payment Successful!'}
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <i className="fa-solid fa-lock"></i>
+                                                    {lang === 'tr' ? 'iyzico ile Güvenli Öde' : 'Pay Securely with iyzico'}
+                                                </>
+                                            )}
+                                        </button>
+
+                                        <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '15px', opacity: 0.6}}>
+                                            <img src="https://raw.githubusercontent.com/iyzico/iyzico-woocommerce/master/iyzico/assets/images/iyzico_logo_header.png" alt="iyzico PCI DSS" style={{height: '16px', objectFit: 'contain'}} onError={(e) => {e.target.style.display = 'none'}} />
+                                            <span style={{fontSize: '11px', color: '#64748B', fontWeight: '500'}}>PCI-DSS Compliant</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </>
+                    )}
                 </>
             );
         };
