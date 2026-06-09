@@ -2348,7 +2348,7 @@
             );
         };
 
-        const ProfileScreen = ({ onLogout, favorites, toggleFavorite, orders, addReview, reviews, onMerchantClick, currentUser, onUpdateProfile, onRepeatOrder, lang, onLanguageChange, t }) => {
+        const ProfileScreen = ({ onLogout, favorites, toggleFavorite, orders, addReview, reviews, onMerchantClick, currentUser, onUpdateProfile, onRepeatOrder, lang, onLanguageChange, t, merchants }) => {
             const [subScreen, setSubScreen] = useState(null);
 
             if (subScreen === 'edit') return (
@@ -2384,6 +2384,10 @@
             };
             const parsed = parseName(currentUser?.name);
 
+            const merchantsWithStamps = (merchants || [])
+                .filter(m => m.currentStamps > 0)
+                .sort((a, b) => a.currentStamps - b.currentStamps);
+
             return (
                 <div className="screen-content" style={{paddingTop: '20px'}}>
                     <div className="profile-grid" style={{display: 'block', maxWidth: '600px', margin: '0 auto'}}>
@@ -2399,6 +2403,71 @@
                                     <div style={{fontSize: '13px', opacity: 0.9}}>{lang === 'tr' ? 'Öğrenci Bilgilerini Gir, Kimliğini Doğrula!' : 'Enter Student Info, Verify Identity!'}</div>
                                 </div>
                                 <i className="fa-solid fa-chevron-right" style={{color: 'white', fontSize: '16px'}}></i>
+                            </div>
+
+                            {/* Damgalarım Bölümü */}
+                            <div style={{background: 'white', borderRadius: '16px', padding: '20px', boxShadow: 'var(--shadow-sm)', display: 'flex', flexDirection: 'column', gap: '12px'}}>
+                                <div style={{display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid #F1F5F9', paddingBottom: '10px'}}>
+                                    <i className="fa-solid fa-stamp" style={{color: 'var(--brand-primary)', fontSize: '20px'}}></i>
+                                    <span style={{fontSize: '15px', fontWeight: '800', color: 'var(--text-main)'}}>{lang === 'tr' ? 'Damgalarım' : 'My Stamps'}</span>
+                                    <span style={{marginLeft: 'auto', background: '#F1F5F9', color: '#64748B', fontSize: '12px', fontWeight: '700', padding: '3px 8px', borderRadius: '12px'}}>
+                                        {merchantsWithStamps.length} {lang === 'tr' ? 'İşletme' : 'Merchants'}
+                                    </span>
+                                </div>
+                                
+                                {merchantsWithStamps.length === 0 ? (
+                                    <div style={{textAlign: 'center', padding: '15px 0', color: 'var(--text-muted)', fontSize: '13px'}}>
+                                        <i className="fa-solid fa-circle-info" style={{marginRight: '6px', color: '#94A3B8'}}></i>
+                                        {lang === 'tr' ? 'Henüz hiçbir işletmeden damganız bulunmuyor.' : 'You do not have stamps from any merchant yet.'}
+                                    </div>
+                                ) : (
+                                    <div style={{display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '250px', overflowY: 'auto', paddingRight: '5px'}}>
+                                        {merchantsWithStamps.map(m => {
+                                            const progressPercent = (m.currentStamps / m.maxStamps) * 100;
+                                            return (
+                                                <div 
+                                                    key={m.id} 
+                                                    onClick={() => onMerchantClick(m)}
+                                                    style={{
+                                                        display: 'flex', 
+                                                        alignItems: 'center', 
+                                                        gap: '12px', 
+                                                        padding: '10px', 
+                                                        borderRadius: '12px', 
+                                                        background: '#F8FAFC', 
+                                                        border: '1px solid #F1F5F9',
+                                                        cursor: 'pointer',
+                                                        transition: 'all 0.2s ease'
+                                                    }}
+                                                    onMouseEnter={(e) => {
+                                                        e.currentTarget.style.borderColor = 'var(--brand-primary)';
+                                                        e.currentTarget.style.background = '#F0FDF4';
+                                                    }}
+                                                    onMouseLeave={(e) => {
+                                                        e.currentTarget.style.borderColor = '#F1F5F9';
+                                                        e.currentTarget.style.background = '#F8FAFC';
+                                                    }}
+                                                >
+                                                    <img src={m.img} alt={m.name} style={{width: '40px', height: '40px', borderRadius: '8px', objectFit: 'cover'}} />
+                                                    <div style={{flex: 1}}>
+                                                        <div style={{fontSize: '14px', fontWeight: '700', color: 'var(--text-main)'}}>{m.name}</div>
+                                                        <div style={{width: '100%', height: '6px', background: '#E2E8F0', borderRadius: '3px', marginTop: '6px', overflow: 'hidden'}}>
+                                                            <div style={{width: `${progressPercent}%`, height: '100%', background: 'var(--brand-primary)', borderRadius: '3px'}}></div>
+                                                        </div>
+                                                    </div>
+                                                    <div style={{textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px'}}>
+                                                        <div style={{fontSize: '14px', fontWeight: '800', color: 'var(--brand-primary)'}}>
+                                                            {m.currentStamps} / {m.maxStamps}
+                                                        </div>
+                                                        <div style={{fontSize: '10px', color: '#94A3B8', fontWeight: '600'}}>
+                                                            {lang === 'tr' ? 'Damga' : 'Stamps'}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
                             </div>
 
                             {/* Ad */}
@@ -3209,6 +3278,7 @@
                             lang={lang}
                             onLanguageChange={(newLang) => setLang(newLang)}
                             t={t}
+                            merchants={merchants}
                             onRepeatOrder={(order) => {
                                 // Build cart items from the order
                                 const merchant = merchants.find(m => m.id === order.merchantId);
