@@ -2589,6 +2589,7 @@
             const [qrDataOverride, setQrDataOverride] = useState(null);
 
             // --- iyzico Payment Simulation States ---
+            const [showCheckoutSelectModal, setShowCheckoutSelectModal] = useState(false);
             const [showIyzicoModal, setShowIyzicoModal] = useState(false);
             const [iyzicoCardName, setIyzicoCardName] = useState('');
             const [iyzicoCardNumber, setIyzicoCardNumber] = useState('');
@@ -2952,26 +2953,8 @@
                     return;
                 }
 
-                // Sipariş türü seçimi ve ödeme simülasyonu
-                const isGelAl = window.confirm(
-                    lang === 'tr' ? "Siparişi Uygulama Üzerinden mi Ödemek İstersiniz (Gel-Al)? \n[İptal] derseniz Kasada Ödeyeceksiniz." 
-                    : "Do you want to pay via App (Take-away)? \nClick [Cancel] to pay at the counter."
-                );
-
-                if (isGelAl) {
-                    // Open iyzico modal instead of window.prompt
-                    setIyzicoCardName('');
-                    setIyzicoCardNumber('');
-                    setIyzicoExpiry('');
-                    setIyzicoCvv('');
-                    setIyzicoError('');
-                    setIyzicoCardType('unknown');
-                    setIyzicoLoading(false);
-                    setIyzicoSuccess(false);
-                    setShowIyzicoModal(true);
-                } else {
-                    executeCheckout('yerinde');
-                }
+                // Open custom selection modal
+                setShowCheckoutSelectModal(true);
             };
 
             const handleLogin = (email, name, phone, username, password) => {
@@ -3266,6 +3249,188 @@
                                         </div>
                                     </div>
                                 )}
+                            </div>
+                        </>
+                    )}
+
+                    {/* CHECKOUT TYPE SELECTION MODAL */}
+                    {showCheckoutSelectModal && (
+                        <>
+                            <div style={{
+                                position: 'fixed', 
+                                top: 0, 
+                                left: 0, 
+                                width: '100%', 
+                                height: '100%', 
+                                background: 'rgba(15, 23, 42, 0.65)', 
+                                backdropFilter: 'blur(8px)',
+                                zIndex: 2500
+                            }} onClick={() => setShowCheckoutSelectModal(false)}></div>
+                            
+                            <div style={{
+                                position: 'fixed', 
+                                top: '50%', 
+                                left: '50%', 
+                                transform: 'translate(-50%, -50%)', 
+                                width: '92%', 
+                                maxWidth: '400px', 
+                                background: '#FFFFFF', 
+                                borderRadius: '24px', 
+                                zIndex: 2501, 
+                                display: 'flex', 
+                                flexDirection: 'column', 
+                                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                                overflow: 'hidden',
+                                animation: 'slideUp 0.3s ease',
+                                fontFamily: "'Inter', sans-serif"
+                            }}>
+                                {/* Header */}
+                                <div style={{
+                                    background: 'var(--brand-primary)', 
+                                    padding: '20px', 
+                                    color: 'white', 
+                                    display: 'flex', 
+                                    justifyContent: 'space-between', 
+                                    alignItems: 'center'
+                                }}>
+                                    <h3 style={{margin: 0, fontSize: '18px', fontWeight: '800'}}>
+                                        <i className="fa-solid fa-credit-card" style={{marginRight: '10px'}}></i>
+                                        {lang === 'tr' ? 'Sipariş ve Ödeme Yöntemi' : 'Order & Payment Method'}
+                                    </h3>
+                                    <i className="fa-solid fa-times" style={{fontSize: '20px', cursor: 'pointer', color: 'rgba(255,255,255,0.8)'}} onClick={() => setShowCheckoutSelectModal(false)}></i>
+                                </div>
+
+                                {/* Body */}
+                                <div style={{padding: '20px', display: 'flex', flexDirection: 'column', gap: '15px'}}>
+                                    {/* Option 1: Yoldayım (Gel-Al) */}
+                                    <div 
+                                        onClick={() => {
+                                            setShowCheckoutSelectModal(false);
+                                            setIyzicoCardName('');
+                                            setIyzicoCardNumber('');
+                                            setIyzicoExpiry('');
+                                            setIyzicoCvv('');
+                                            setIyzicoError('');
+                                            setIyzicoCardType('unknown');
+                                            setIyzicoLoading(false);
+                                            setIyzicoSuccess(false);
+                                            setShowIyzicoModal(true);
+                                        }}
+                                        style={{
+                                            border: '2px solid #E2E8F0',
+                                            borderRadius: '16px',
+                                            padding: '16px',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '15px',
+                                            transition: 'all 0.2s ease',
+                                            background: '#F8FAFC'
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            e.currentTarget.style.borderColor = '#16397e';
+                                            e.currentTarget.style.background = '#F0F9FF';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.borderColor = '#E2E8F0';
+                                            e.currentTarget.style.background = '#F8FAFC';
+                                        }}
+                                    >
+                                        <div style={{
+                                            width: '48px', 
+                                            height: '48px', 
+                                            borderRadius: '12px', 
+                                            background: '#E0F2FE', 
+                                            display: 'flex', 
+                                            alignItems: 'center', 
+                                            justifyContent: 'center',
+                                            color: '#0284C7',
+                                            fontSize: '20px'
+                                        }}>
+                                            <i className="fa-solid fa-truck-fast"></i>
+                                        </div>
+                                        <div style={{flex: 1}}>
+                                            <div style={{fontWeight: '800', fontSize: '15px', color: '#1E293B'}}>
+                                                {lang === 'tr' ? 'Yoldayım (Gel-Al)' : 'I am on my way (Take-away)'}
+                                            </div>
+                                            <div style={{fontSize: '12px', color: '#64748B', marginTop: '3px'}}>
+                                                {lang === 'tr' ? 'Uygulamadan iyzico ile ödeyin.' : 'Pay via App with iyzico.'}
+                                            </div>
+                                        </div>
+                                        <i className="fa-solid fa-chevron-right" style={{color: '#94A3B8'}}></i>
+                                    </div>
+
+                                    {/* Option 2: Kasada Öde (Yerinde) */}
+                                    <div 
+                                        onClick={() => {
+                                            setShowCheckoutSelectModal(false);
+                                            executeCheckout('yerinde');
+                                        }}
+                                        style={{
+                                            border: '2px solid #E2E8F0',
+                                            borderRadius: '16px',
+                                            padding: '16px',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '15px',
+                                            transition: 'all 0.2s ease',
+                                            background: '#F8FAFC'
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            e.currentTarget.style.borderColor = 'var(--brand-primary)';
+                                            e.currentTarget.style.background = '#F0FDF4';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.borderColor = '#E2E8F0';
+                                            e.currentTarget.style.background = '#F8FAFC';
+                                        }}
+                                    >
+                                        <div style={{
+                                            width: '48px', 
+                                            height: '48px', 
+                                            borderRadius: '12px', 
+                                            background: '#DCFCE7', 
+                                            display: 'flex', 
+                                            alignItems: 'center', 
+                                            justifyContent: 'center',
+                                            color: '#16A34A',
+                                            fontSize: '20px'
+                                        }}>
+                                            <i className="fa-solid fa-store"></i>
+                                        </div>
+                                        <div style={{flex: 1}}>
+                                            <div style={{fontWeight: '800', fontSize: '15px', color: '#1E293B'}}>
+                                                {lang === 'tr' ? 'Kasada Ödeyeceğim (Yerinde)' : 'Pay at counter (In-store)'}
+                                            </div>
+                                            <div style={{fontSize: '12px', color: '#64748B', marginTop: '3px'}}>
+                                                {lang === 'tr' ? 'Siparişi verip kasada QR okutarak ödeyin.' : 'Place order and pay at counter with QR.'}
+                                            </div>
+                                        </div>
+                                        <i className="fa-solid fa-chevron-right" style={{color: '#94A3B8'}}></i>
+                                    </div>
+                                    
+                                    {/* Close Button */}
+                                    <button 
+                                        onClick={() => setShowCheckoutSelectModal(false)}
+                                        style={{
+                                            background: '#F1F5F9',
+                                            color: '#475569',
+                                            border: 'none',
+                                            padding: '12px',
+                                            borderRadius: '12px',
+                                            fontSize: '14px',
+                                            fontWeight: '700',
+                                            cursor: 'pointer',
+                                            marginTop: '5px',
+                                            transition: 'background 0.2s'
+                                        }}
+                                        onMouseEnter={(e) => e.currentTarget.style.background = '#E2E8F0'}
+                                        onMouseLeave={(e) => e.currentTarget.style.background = '#F1F5F9'}
+                                    >
+                                        {lang === 'tr' ? 'Vazgeç' : 'Cancel'}
+                                    </button>
+                                </div>
                             </div>
                         </>
                     )}
